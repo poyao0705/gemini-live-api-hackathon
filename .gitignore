@@ -3,5 +3,5 @@ __pychache__/
 *.pyc
 *.pyo
 *.pyd
-
+.vscode/
 session.db
