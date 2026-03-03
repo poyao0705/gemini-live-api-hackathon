@@ -1,1 +1,7 @@
 .env
+__pychache__/
+*.pyc
+*.pyo
+*.pyd
+
+session.db
