@@ -7,6 +7,7 @@ const agentFeedEl = document.getElementById("agentFeed");
 
 let agentSocket = null;
 let agentReconnectTimer = null;
+let transcriptSocket = null;
 let audioPlayerNode = null;
 let audioPlayerContext = null;
 let audioRecorderNode = null;
@@ -15,6 +16,9 @@ let meetingStream = null;
 let currentAgentEvent = null;
 let currentAgentText = "";
 let currentTurnUsesTranscription = false;
+let currentUserEvent = null;
+let currentUserText = "";
+let currentUserFinished = false;
 
 function appendEvent(title, text, meta = "") {
   const event = document.createElement("div");
@@ -108,6 +112,12 @@ function resetCurrentAgentEvent() {
   currentTurnUsesTranscription = false;
 }
 
+function resetCurrentUserEvent() {
+  currentUserEvent = null;
+  currentUserText = "";
+  currentUserFinished = false;
+}
+
 function ensureCurrentAgentEvent(initialText = "") {
   if (!currentAgentEvent) {
     currentAgentEvent = appendEvent(
@@ -119,6 +129,13 @@ function ensureCurrentAgentEvent(initialText = "") {
   return currentAgentEvent;
 }
 
+function ensureCurrentUserEvent(initialText = "") {
+  if (!currentUserEvent) {
+    currentUserEvent = appendEvent("You", initialText || "...", "transcribing");
+  }
+  return currentUserEvent;
+}
+
 function renderAgentText(text, isFinal = false, source = "text") {
   const event = ensureCurrentAgentEvent(text);
   updateEvent(event, text, isFinal ? `final ${source}` : `partial ${source}`);
@@ -127,18 +144,39 @@ function renderAgentText(text, isFinal = false, source = "text") {
   }
 }
 
+function renderUserText(text, isFinal = false) {
+  if (currentUserFinished) {
+    return;
+  }
+  const event = ensureCurrentUserEvent(text);
+  updateEvent(event, text, isFinal ? "final transcription" : "partial transcription");
+  if (isFinal) {
+    currentUserFinished = true;
+  }
+}
+
 function handleAgentEvent(message) {
   const adkEvent = JSON.parse(message.data);
 
   if (adkEvent.turnComplete) {
     resetCurrentAgentEvent();
+    resetCurrentUserEvent();
     return;
   }
 
   if (adkEvent.interrupted) {
     resetCurrentAgentEvent();
+    resetCurrentUserEvent();
     appendEvent("System", "Agent output interrupted");
     return;
+  }
+
+  if (adkEvent.inputTranscription?.text) {
+    const isFinished = Boolean(adkEvent.inputTranscription.finished);
+    currentUserText = isFinished
+      ? adkEvent.inputTranscription.text
+      : `${currentUserText}${adkEvent.inputTranscription.text}`;
+    renderUserText(currentUserText, isFinished);
   }
 
   if (adkEvent.outputTranscription?.text) {
@@ -242,3 +280,55 @@ function connectAgentSocket() {
 }
 
 connectAgentSocket();
+
+function getTranscriptWsFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const value = params.get("transcript_ws");
+  return value ? value.trim() : "";
+}
+
+function connectTranscriptSocket() {
+  const wsUrl = getTranscriptWsFromQuery();
+  if (!wsUrl || !isValidWebSocketUrl(wsUrl)) {
+    return;
+  }
+
+  transcriptSocket = new WebSocket(wsUrl);
+  appendEvent("System", "Connecting to Recall transcript feed", wsUrl);
+
+  transcriptSocket.onopen = () => {
+    appendEvent("System", "Recall transcript feed connected");
+  };
+
+  transcriptSocket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      const speaker =
+        typeof data.speaker?.name === "string"
+          ? data.speaker.name
+          : typeof data.speaker === "string"
+            ? data.speaker
+            : "Speaker";
+      const words = Array.isArray(data.words)
+        ? data.words.map((w) => (typeof w === "string" ? w : w.text ?? "")).join(" ")
+        : data.text ?? String(event.data);
+      if (words) {
+        appendEvent(`[Transcript] ${speaker}`, words);
+      }
+    } catch (err) {
+      console.warn("Failed to parse transcript message:", err);
+      appendEvent("[Transcript]", String(event.data));
+    }
+  };
+
+  transcriptSocket.onerror = () => {
+    appendEvent("System", "Recall transcript feed error");
+  };
+
+  transcriptSocket.onclose = () => {
+    appendEvent("System", "Recall transcript feed disconnected");
+    transcriptSocket = null;
+  };
+}
+
+connectTranscriptSocket();
