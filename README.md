@@ -1,8 +1,19 @@
 # gemini-live-api-hackathon
 Live API hackathon
 
-- To run in local, please run: `uv run uvicorn app.main:app --reload `
+- To run locally, use: `uv run uvicorn app.main:app --reload`
 
+## Demo
+
+Start the FastAPI app:
+
+```bash
+uv run uvicorn app.main:app --reload
+```
+
+Then open `http://127.0.0.1:8000` in your browser to use the original Gemini Live demo UI.
+
+<!--
 ## Minimal Recall Bot Setup (No Recording)
 
 This repo now includes a minimal Recall output media runtime page at `/recall`.
@@ -62,3 +73,4 @@ The Recall integration now uses only two relevant app surfaces:
 
 - `GET /recall`
 - `WS /ws/{user_id}/{session_id}`
+-->
