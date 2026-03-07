@@ -186,10 +186,8 @@ async function startMeetingAudio() {
     audio: { channelCount: 1 },
   });
 
-  [audioRecorderNode, audioRecorderContext] = await startStreamAudioRecorderWorklet(
-    meetingStream,
-    sendAudioChunk,
-  );
+  [audioRecorderNode, audioRecorderContext] =
+    await startStreamAudioRecorderWorklet(meetingStream, sendAudioChunk);
 
   if (audioRecorderContext?.state === "suspended") {
     await audioRecorderContext.resume();
