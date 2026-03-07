@@ -25,35 +25,12 @@ body {
 .app-shell {
   width: min(980px, 100% - 2rem);
   margin: 1rem auto;
-  display: block;
+  display: grid;
+  gap: 1rem;
 }
 
 .conversation-only-shell {
   min-height: calc(100vh - 2rem);
-}
-
-.hero {
-  background: linear-gradient(140deg, #0f7e6c, #15495a);
-  color: #f4fffb;
-  border-radius: 16px;
-  padding: 1rem 1.2rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
-}
-
-.eyebrow {
-  margin: 0;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-}
-
-.hero h1 {
-  margin: 0.25rem 0;
-}
-
-.sub {
-  margin: 0;
-  opacity: 0.92;
 }
 
 .panel {
@@ -61,6 +38,12 @@ body {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 1rem;
+  box-shadow: 0 8px 20px rgba(16, 33, 29, 0.05);
+}
+
+.controls-panel {
+  display: grid;
+  gap: 1rem;
 }
 
 .conversation-panel {
@@ -70,9 +53,31 @@ body {
   padding: 0.75rem;
 }
 
+.debug-only[hidden] {
+  display: none !important;
+}
+
 .panel h2 {
   margin-top: 0;
   font-size: 1rem;
+}
+
+.section-header {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.section-copy {
+  margin: 0;
+  color: #50615c;
+  line-height: 1.4;
+}
+
+.controls-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .controls label {
@@ -81,19 +86,48 @@ body {
   margin-bottom: 0.35rem;
 }
 
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
 input[type="text"] {
   width: 100%;
   border-radius: 10px;
   border: 1px solid #b9c8c2;
   font-size: 0.95rem;
   padding: 0.6rem 0.7rem;
+  background: #fbfdfc;
+}
+
+select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #b9c8c2;
+  font-size: 0.95rem;
+  padding: 0.6rem 0.7rem;
+  background: #fbfdfc;
 }
 
 .row {
-  margin-top: 0.75rem;
   display: flex;
   gap: 0.7rem;
   flex-wrap: wrap;
+}
+
+.toggle-row {
+  align-items: center;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.action-row {
+  align-items: center;
 }
 
 button {
@@ -104,6 +138,11 @@ button {
   background: linear-gradient(140deg, var(--accent), var(--accent-2));
   font-size: 0.92rem;
   cursor: pointer;
+}
+
+.secondary-button {
+  color: var(--ink);
+  background: #e5ece8;
 }
 
 button:disabled {
@@ -125,6 +164,20 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.status-label {
+  font-size: 0.78rem;
+  color: #50615c;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.text-form {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
 }
 
 .feed {
@@ -172,5 +225,13 @@ button:disabled {
   .app-shell {
     width: min(980px, 100% - 1rem);
     margin: 0.5rem auto;
+  }
+
+  .text-form {
+    grid-template-columns: 1fr;
+  }
+
+  .action-row button {
+    width: 100%;
   }
 }

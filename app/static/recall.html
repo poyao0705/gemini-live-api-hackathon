@@ -3,13 +3,117 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Recall Meeting Agent Runtime</title>
+    <title>Gemini Live Runtime</title>
     <link rel="stylesheet" href="/static/css/recall.css" />
-    <script src="/static/js/recall.js" type="module"></script>
+    <script src="/static/js/recall.js?v=20260308" type="module"></script>
   </head>
   <body>
     <main class="app-shell conversation-only-shell">
+      <section class="panel controls-panel debug-only" hidden>
+        <div class="section-header">
+          <h2>Debug Controls</h2>
+          <p class="section-copy">
+            Local-only controls for testing the same conversational runtime.
+          </p>
+        </div>
+
+        <div class="controls-grid">
+          <label>
+            WebSocket URL
+            <input type="text" id="wsUrl" spellcheck="false" />
+          </label>
+          <label>
+            User ID
+            <input type="text" id="userId" spellcheck="false" />
+          </label>
+          <label>
+            Session ID
+            <input type="text" id="sessionId" spellcheck="false" />
+          </label>
+          <label>
+            Input source
+            <select id="inputSource">
+              <option value="none">None</option>
+              <option value="microphone">Microphone</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row toggle-row">
+          <label class="checkbox-row">
+            <input type="checkbox" id="autoReconnect" checked />
+            <span>Auto reconnect</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="autoEnableAudio" checked />
+            <span>Enable audio output on connect</span>
+          </label>
+        </div>
+
+        <div class="row action-row">
+          <button type="button" id="connectButton">Connect</button>
+          <button type="button" id="disconnectButton" disabled>
+            Disconnect
+          </button>
+          <button type="button" id="startInputButton" disabled>
+            Start Input
+          </button>
+          <button type="button" id="stopInputButton" disabled>
+            Stop Input
+          </button>
+          <button type="button" id="enableAudioButton">
+            Enable Audio Output
+          </button>
+          <button type="button" id="resetFeedButton" class="secondary-button">
+            Clear Feed
+          </button>
+        </div>
+
+        <div class="status-grid">
+          <div>
+            <span class="status-label">Connection</span>
+            <strong id="connectionState">idle</strong>
+          </div>
+          <div>
+            <span class="status-label">Input</span>
+            <strong id="inputState">none</strong>
+          </div>
+          <div>
+            <span class="status-label">Audio Output</span>
+            <strong id="audioOutputState">disabled</strong>
+          </div>
+          <div>
+            <span class="status-label">Session</span>
+            <strong id="sessionState">unassigned</strong>
+          </div>
+          <div>
+            <span class="status-label">Last Event</span>
+            <strong id="lastEventState">waiting</strong>
+          </div>
+        </div>
+
+        <form id="textForm" class="text-form">
+          <label>
+            Send text
+            <input
+              type="text"
+              id="textPrompt"
+              placeholder="Ask the agent something without using audio"
+              autocomplete="off"
+            />
+          </label>
+          <button type="submit" id="sendTextButton" disabled>Send</button>
+        </form>
+      </section>
+
       <section class="panel conversation-panel">
+        <div class="section-header debug-only" hidden>
+          <h2>Agent Feed</h2>
+          <p class="section-copy">
+            Streamed model events, transcriptions, and runtime diagnostics
+            appear here.
+          </p>
+        </div>
         <div id="agentFeed" class="feed"></div>
       </section>
     </main>
