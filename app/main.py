@@ -7,7 +7,7 @@ import warnings
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from google.adk.agents.live_request_queue import LiveRequestQueue
@@ -61,6 +61,18 @@ runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service)
 async def root():
     """Serve the index.html page."""
     return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+
+@app.get("/recall")
+async def recall_root():
+    """Serve minimal webpage runtime for Recall output media."""
+    return FileResponse(Path(__file__).parent / "static" / "recall.html")
+
+
+@app.post("/api/recall/audio-event")
+async def recall_audio_event_compat() -> Response:
+    """No-op compatibility route for stale cached Recall pages."""
+    return Response(status_code=204)
 
 
 # ========================================
