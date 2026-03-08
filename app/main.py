@@ -6,7 +6,6 @@ import logging
 import warnings
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,14 +15,11 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from .meetings import meetings_store, set_meeting_agenda
-
-# Load environment variables from .env file BEFORE importing agent
-load_dotenv(Path(__file__).parent / ".env")
+# from .meetings import meetings_store, set_meeting_agenda
 
 # Import agent after loading environment variables
 # pylint: disable=wrong-import-position
-from .google_search_agent.agent import agent  # noqa: E402
+from app.google_search_agent.agent import agent
 
 # Configure logging
 logging.basicConfig(
