@@ -16,6 +16,8 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
+from .meetings import meetings_store, set_meeting_agenda
+
 # Load environment variables from .env file BEFORE importing agent
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -35,6 +37,8 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 # Application name constant
 APP_NAME = "bidi-demo"
+
+meetings_store = {} # Meeting important stuff storage
 
 # ========================================
 # Phase 1: Application Initialization (once at startup)
@@ -73,6 +77,13 @@ async def recall_root():
 async def recall_audio_event_compat() -> Response:
     """No-op compatibility route for stale cached Recall pages."""
     return Response(status_code=204)
+
+# Meeting Agenda before meeting, input before start of meeting with AI
+@app.post("/api/meetings/{session_id}/agenda")
+async def set_agenda(session_id: str, body: dict) -> dict:
+    items = body.get("agenda", [])
+    clean_items = ""
+    return {"status": "ok", "session_id": session_id, "agenda": clean_items}
 
 
 # ========================================
@@ -172,6 +183,9 @@ async def websocket_endpoint(
             app_name=APP_NAME, user_id=user_id, session_id=session_id
         )
 
+    # Meeting Agenda Injection
+    agenda = meetings_store.get(session_id, {}).get("agenda", [])
+
     live_request_queue = LiveRequestQueue()
 
     # ========================================
@@ -261,5 +275,6 @@ async def websocket_endpoint(
         # ========================================
 
         # Always close the queue, even if exceptions occurred
+        # TODO: Add summary function before disconnection (?)
         logger.debug("Closing live_request_queue")
         live_request_queue.close()
