@@ -1,12 +1,18 @@
-# gmail_watch.py
-
+import os
+from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
-def start_gmail_watch():
+creds = None
 
+# Load existing token
+if os.path.exists("token.json"):
+    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+# If token does not exist or expired → login once
+if not creds or not creds.valid:
     flow = InstalledAppFlow.from_client_secrets_file(
         "credentials.json",
         SCOPES
@@ -14,17 +20,20 @@ def start_gmail_watch():
 
     creds = flow.run_local_server(port=0)
 
-    service = build("gmail", "v1", credentials=creds)
+    # Save token for future use
+    with open("token.json", "w") as token:
+        token.write(creds.to_json())
 
-    request = {
-        "topicName": "projects/meetloaf-hackathon/topics/gmail-events-topic"
-    }
+# Build Gmail API client
+service = build("gmail", "v1", credentials=creds)
 
-    response = service.users().watch(
-        userId="me",
-        body=request
-    ).execute()
+request = {
+    "topicName": "projects/meetloaf-hackathon/topics/gmail-events-topic"
+}
 
-    print("Watch started:", response)
+response = service.users().watch(
+    userId="me",
+    body=request
+).execute()
 
-    return response
+print(response)
