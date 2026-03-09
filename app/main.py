@@ -1,16 +1,16 @@
 """FastAPI application demonstrating ADK Bidi-streaming with WebSocket."""
 
 import asyncio
+import base64
 import json
 import logging
 import warnings
-from pathlib import Path
-import base64
 import uuid
+from pathlib import Path
 
 from pydantic import BaseModel
 
-from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from google.adk.agents.live_request_queue import LiveRequestQueue
@@ -18,12 +18,19 @@ from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+from googleapiclient.errors import HttpError
 
 # from .meetings import meetings_store, set_meeting_agenda
 
 # Import agent after loading environment variables
 # pylint: disable=wrong-import-position
 from app.google_search_agent.agent import agent
+from app.gmail_history import (
+    HistoryIdExpiredError,
+    InvalidPubSubPayloadError,
+    decode_pubsub_message,
+    process_gmail_push_notification,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -81,20 +88,50 @@ class PubSubBody(BaseModel):
     message: PubSubMessage  # nested model, not dict
     subscription: str
 
-whitelist = ["meetingpal@gmail.com", "tommyfriend@yahoo.com"] # will be put into config file?
-
 @app.post("/gmail/webhook")
-async def receive_email(body: PubSubBody) -> Response:
-    decoded_bytes = base64.b64decode(body.message.data)
-    decoded_json = json.loads(decoded_bytes)
+async def receive_email(body: PubSubBody, background_tasks: BackgroundTasks) -> dict:
+    try:
+        decoded_json = decode_pubsub_message(body.message.data)
+    except InvalidPubSubPayloadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     history_id = decoded_json.get("historyId")
-    email_address = decoded_json.get("emailAddress")
+    email_address = decoded_json.get("emailAddress", "").lower()
+
+    if not history_id or not email_address:
+        raise HTTPException(
+            status_code=400,
+            detail="Pub/Sub payload must include emailAddress and historyId",
+        )
 
     session_id = str(uuid.uuid4())
-    print(f"Received email event for {email_address}, historyId: {history_id}")
+    logger.info(
+        "Queued Gmail push notification for %s at historyId=%s",
+        email_address,
+        history_id,
+    )
 
-    return {"status": "ok", "session_id": session_id, "history_id": history_id}
+    async def run_gmail_sync() -> None:
+        try:
+            result = await process_gmail_push_notification(
+                email_address=email_address,
+                published_history_id=str(history_id),
+            )
+            logger.info("Gmail sync result: %s", result)
+        except HistoryIdExpiredError:
+            logger.exception("Stored Gmail historyId expired for %s", email_address)
+        except (HttpError, OSError, ValueError):
+            logger.exception("Failed to process Gmail push notification for %s", email_address)
+
+    background_tasks.add_task(run_gmail_sync)
+
+    return {
+        "status": "accepted",
+        "session_id": session_id,
+        "history_id": str(history_id),
+        "email_address": email_address,
+        "message_id": body.message.messageId,
+    }
 
 
 @app.post("/api/recall/audio-event")
@@ -250,8 +287,6 @@ async def websocket_endpoint(
 
                 # Handle image data
                 elif json_message.get("type") == "image":
-                    import base64
-
                     logger.debug("Received image data")
 
                     # Decode base64 image data

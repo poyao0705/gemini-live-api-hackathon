@@ -1,39 +1,52 @@
-import os
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+"""Start a Gmail watch subscription and store the returned baseline historyId."""
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+from __future__ import annotations
 
-creds = None
+import asyncio
+import json
+from typing import Any
 
-# Load existing token
-if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+from app.config import settings
+from app.gmail_history import bootstrap_history_state
+from app.gmail_service import get_gmail_service
 
-# If token does not exist or expired → login once
-if not creds or not creds.valid:
-    flow = InstalledAppFlow.from_client_secrets_file(
-        "credentials.json",
-        SCOPES
+
+def main() -> None:
+    if not settings.gmail_watch_topic:
+        raise RuntimeError("GMAIL_WATCH_TOPIC must be configured before running gmail_watch.py")
+
+    service: Any = get_gmail_service()
+    users_resource = getattr(service, "users")()
+    profile = users_resource.getProfile(userId=settings.gmail_user_id).execute()
+    email_address = profile["emailAddress"]
+
+    request: dict[str, object] = {"topicName": settings.gmail_watch_topic}
+    if settings.gmail_watch_label_ids:
+        request["labelIds"] = settings.gmail_watch_label_ids
+
+    response = users_resource.watch(
+        userId=settings.gmail_user_id,
+        body=request,
+    ).execute()
+
+    asyncio.run(
+        bootstrap_history_state(
+            email_address,
+            str(response["historyId"]),
+            watch_expiration=response.get("expiration"),
+        )
     )
 
-    creds = flow.run_local_server(port=0)
+    print(
+        json.dumps(
+            {
+                "emailAddress": email_address,
+                **response,
+            },
+            indent=2,
+        )
+    )
 
-    # Save token for future use
-    with open("token.json", "w") as token:
-        token.write(creds.to_json())
 
-# Build Gmail API client
-service = build("gmail", "v1", credentials=creds)
-
-request = {
-    "topicName": "projects/meetloaf-hackathon/topics/gmail-events-topic"
-}
-
-response = service.users().watch(
-    userId="me",
-    body=request
-).execute()
-
-print(response)
+if __name__ == "__main__":
+    main()
