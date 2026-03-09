@@ -69,6 +69,34 @@ async def recall_root():
     return FileResponse(Path(__file__).parent / "static" / "recall.html")
 
 
+import base64
+import uuid
+
+from pydantic import BaseModel
+
+class PubSubMessage(BaseModel):
+    data: str
+    messageId: str
+
+class PubSubBody(BaseModel):
+    message: PubSubMessage  # nested model, not dict
+    subscription: str
+
+whitelist = ["meetingpal@gmail.com", "tommyfriend@yahoo.com"] # will be put into config file?
+
+@app.post("/gmail/webhook")
+async def receive_email(body: PubSubBody) -> Response:
+    decoded_bytes = base64.b64decode(body.get("data"))
+    decoded_json = json.loads(decoded_bytes)
+
+    history_id = decoded_json.get("historyId")
+    email_address = decoded_json.get("emailAddress")
+
+    session_id = str(uuid.uuid4())
+
+    return {"status": "ok", "session_id": session_id, "history_id": history_id}
+
+
 @app.post("/api/recall/audio-event")
 async def recall_audio_event_compat() -> Response:
     """No-op compatibility route for stale cached Recall pages."""
