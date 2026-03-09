@@ -5,6 +5,10 @@ import json
 import logging
 import warnings
 from pathlib import Path
+import base64
+import uuid
+
+from pydantic import BaseModel
 
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -68,11 +72,6 @@ async def recall_root():
     """Serve minimal webpage runtime for Recall output media."""
     return FileResponse(Path(__file__).parent / "static" / "recall.html")
 
-
-import base64
-import uuid
-
-from pydantic import BaseModel
 
 class PubSubMessage(BaseModel):
     data: str
