@@ -6,9 +6,9 @@ import asyncio
 import json
 from typing import Any
 
-from app.config import settings
-from app.gmail_history import bootstrap_history_state
-from app.gmail_service import get_gmail_service
+from app.core.config import settings
+from app.services.gmail.history import bootstrap_history_state
+from app.integrations.google.client import get_gmail_service
 
 
 def main() -> None:

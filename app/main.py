@@ -5,32 +5,20 @@ import base64
 import json
 import logging
 import warnings
-import uuid
 from pathlib import Path
 
-from pydantic import BaseModel
-
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from google.adk.agents.live_request_queue import LiveRequestQueue
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
-from googleapiclient.errors import HttpError
 
-# from .meetings import meetings_store, set_meeting_agenda
-
-# Import agent after loading environment variables
-# pylint: disable=wrong-import-position
-from app.google_search_agent.agent import agent
-from app.gmail_history import (
-    HistoryIdExpiredError,
-    InvalidPubSubPayloadError,
-    decode_pubsub_message,
-    process_gmail_push_notification,
-)
+from app.api.api_v1 import api_router
+from app.api.endpoints.meetings import meetings_store
+from app.services.google_search_agent.agent import agent
+from app.web.router import router as web_router
 
 # Configure logging
 logging.basicConfig(
@@ -45,15 +33,17 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 # Application name constant
 APP_NAME = "bidi-demo"
 
-meetings_store = {} # Meeting important stuff storage
-
 # ========================================
 # Phase 1: Application Initialization (once at startup)
 # ========================================
 
 app = FastAPI()
 
-# Mount static files
+# Include API and web routers
+app.include_router(api_router)
+app.include_router(web_router)
+
+# Mount static files (CSS/JS assets only — HTML pages live in templates/)
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
@@ -62,89 +52,6 @@ session_service = InMemorySessionService()
 
 # Define your runner
 runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service)
-
-# ========================================
-# HTTP Endpoints
-# ========================================
-
-
-@app.get("/")
-async def root():
-    """Serve the index.html page."""
-    return FileResponse(Path(__file__).parent / "static" / "index.html")
-
-
-@app.get("/recall")
-async def recall_root():
-    """Serve minimal webpage runtime for Recall output media."""
-    return FileResponse(Path(__file__).parent / "static" / "recall.html")
-
-
-class PubSubMessage(BaseModel):
-    data: str
-    messageId: str
-
-class PubSubBody(BaseModel):
-    message: PubSubMessage  # nested model, not dict
-    subscription: str
-
-@app.post("/gmail/webhook")
-async def receive_email(body: PubSubBody, background_tasks: BackgroundTasks) -> dict:
-    try:
-        decoded_json = decode_pubsub_message(body.message.data)
-    except InvalidPubSubPayloadError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    history_id = decoded_json.get("historyId")
-    email_address = decoded_json.get("emailAddress", "").lower()
-
-    if not history_id or not email_address:
-        raise HTTPException(
-            status_code=400,
-            detail="Pub/Sub payload must include emailAddress and historyId",
-        )
-
-    session_id = str(uuid.uuid4())
-    logger.info(
-        "Queued Gmail push notification for %s at historyId=%s",
-        email_address,
-        history_id,
-    )
-
-    async def run_gmail_sync() -> None:
-        try:
-            result = await process_gmail_push_notification(
-                email_address=email_address,
-                published_history_id=str(history_id),
-            )
-            logger.info("Gmail sync result: %s", result)
-        except HistoryIdExpiredError:
-            logger.exception("Stored Gmail historyId expired for %s", email_address)
-        except (HttpError, OSError, ValueError):
-            logger.exception("Failed to process Gmail push notification for %s", email_address)
-
-    background_tasks.add_task(run_gmail_sync)
-
-    return {
-        "status": "accepted",
-        "session_id": session_id,
-        "history_id": str(history_id),
-        "email_address": email_address,
-        "message_id": body.message.messageId,
-    }
-
-
-@app.post("/api/recall/audio-event")
-async def recall_audio_event_compat() -> Response:
-    """No-op compatibility route for stale cached Recall pages."""
-    return Response(status_code=204)
-
-# Meeting Agenda before meeting, input before start of meeting with AI
-@app.post("/api/meetings/{session_id}/agenda")
-async def set_agenda(session_id: str, body: dict) -> dict:
-    items = body.get("agenda", [])
-    clean_items = ""
-    return {"status": "ok", "session_id": session_id, "agenda": clean_items}
 
 
 # ========================================

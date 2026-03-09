@@ -3,7 +3,7 @@
 from google.adk.agents import Agent
 from google.adk.tools import google_search
 
-from app.config import settings
+from app.core.config import settings
 
 # Default models for Live API with native audio support:
 # - Gemini Live API: gemini-2.5-flash-native-audio-preview-12-2025

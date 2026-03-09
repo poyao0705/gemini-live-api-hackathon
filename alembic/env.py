@@ -11,8 +11,8 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
-from app.config import settings
-from app import models as app_models
+from app.core.config import settings
+from app.db import models as app_models  # noqa: F401 — import for SQLModel metadata registration
 
 
 alembic_ctx: Any = alembic_context

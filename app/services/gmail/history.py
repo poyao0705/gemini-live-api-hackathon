@@ -14,10 +14,10 @@ from typing import Any
 from googleapiclient.errors import HttpError
 from sqlmodel import select
 
-from app.config import settings
-from app.db import async_session_factory
-from app.gmail_service import get_gmail_service
-from app.models import GmailHistoryState, utc_now
+from app.core.config import settings
+from app.db.session import async_session_factory
+from app.integrations.google.client import get_gmail_service
+from app.db.models.meeting import GmailHistoryState, utc_now
 
 
 logger = logging.getLogger(__name__)
