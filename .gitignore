@@ -5,3 +5,6 @@ __pychache__/
 *.pyd
 .vscode/
 session.db
+
+credentials.json
+token.json
