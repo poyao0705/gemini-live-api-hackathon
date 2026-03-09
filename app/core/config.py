@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-APP_DIR = Path(__file__).resolve().parent
-ROOT_DIR = APP_DIR.parent
+APP_DIR = Path(__file__).resolve().parent.parent  # app/
+ROOT_DIR = APP_DIR.parent  # repo root
 
 
 def load_app_env() -> None:

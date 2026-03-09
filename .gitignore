@@ -1,10 +1,11 @@
 .env
-__pychache__/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .vscode/
 session.db
+.DS_Store
 
 credentials.json
 token.json
