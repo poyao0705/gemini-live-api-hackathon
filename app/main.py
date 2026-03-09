@@ -86,13 +86,14 @@ whitelist = ["meetingpal@gmail.com", "tommyfriend@yahoo.com"] # will be put into
 
 @app.post("/gmail/webhook")
 async def receive_email(body: PubSubBody) -> Response:
-    decoded_bytes = base64.b64decode(body.get("data"))
+    decoded_bytes = base64.b64decode(body.message.data)
     decoded_json = json.loads(decoded_bytes)
 
     history_id = decoded_json.get("historyId")
     email_address = decoded_json.get("emailAddress")
 
     session_id = str(uuid.uuid4())
+    print(f"Received email event for {email_address}, historyId: {history_id}")
 
     return {"status": "ok", "session_id": session_id, "history_id": history_id}
 
