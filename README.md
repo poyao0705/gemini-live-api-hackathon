@@ -11,6 +11,12 @@ Start the FastAPI app:
 uv run uvicorn app.main:app --reload
 ```
 
+or
+
+```bash
+fastapi dev
+```
+
 Then open `http://127.0.0.1:8000` in your browser to use the original Gemini Live demo UI.
 
 <!--
