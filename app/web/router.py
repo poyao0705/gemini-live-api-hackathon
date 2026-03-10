@@ -37,54 +37,78 @@ to_xml = fh.to_xml
 # Minimal CSS retained for classes applied dynamically by app.js (message bubbles,
 # console entries, status indicator). Page layout is now handled by Tailwind/DaisyUI.
 _STYLE_CSS = """
+:root {
+  --bg: #f4efe4;
+  --surface: rgba(255, 250, 242, 0.84);
+  --surface-strong: #fffaf1;
+  --ink: #1f1a16;
+  --muted: #5b5148;
+  --accent: #c65a2e;
+  --accent-soft: #f2c8a9;
+  --border: rgba(31, 26, 22, 0.12);
+  --shadow: 0 22px 60px rgba(92, 57, 31, 0.12);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 36%),
+    radial-gradient(circle at top right, rgba(198, 90, 46, 0.12), transparent 28%),
+    linear-gradient(180deg, #efe2cf 0%, var(--bg) 48%, #efe7da 100%);
+  background-attachment: fixed;
+}
+
 /* Chat message bubbles — created dynamically by app.js */
-.message { display: flex; margin-bottom: 0.5rem; animation: slideIn 0.3s ease-out; }
+.message { display: flex; margin-bottom: 1rem; animation: slideIn 0.3s ease-out; }
 .message.user { justify-content: flex-end; }
 .message.agent { justify-content: flex-start; }
-.bubble { max-width: 70%; padding: 0.75rem 1rem; border-radius: 1.25rem; word-wrap: break-word; position: relative; }
-.message.user .bubble { background-color: #4285f4; color: #fff; border-bottom-right-radius: 0.25rem; }
-.message.agent .bubble { background-color: #f1f3f4; color: #202124; border-bottom-left-radius: 0.25rem; }
-.bubble-text { margin: 0; line-height: 1.5; }
-.message.interrupted .bubble { opacity: 0.6; background-color: #e8eaed; border-left: 3px solid #f4b400; }
-.message.interrupted .bubble::after { content: "interrupted"; display: block; font-size: 0.75rem; color: #5f6368; font-style: italic; margin-top: 0.25rem; }
-.message.transcription.user .bubble { opacity: 0.9; border: 1px solid rgba(255,255,255,0.3); }
+.bubble { max-width: 70%; padding: 0.875rem 1.25rem; border-radius: 1.5rem; word-wrap: break-word; position: relative; font-size: 0.95rem; box-shadow: none; }
+.message.user .bubble { background-color: rgba(31, 26, 22, 0.05); color: var(--ink); border: 1px solid var(--border); border-bottom-right-radius: 0.5rem; }
+.message.agent .bubble { background-color: transparent; color: var(--ink); border: none; box-shadow: none; padding-left: 0; }
+.bubble-text { margin: 0; line-height: 1.6; }
+.message.interrupted .bubble { opacity: 0.7; background-color: var(--surface); border-left: 3px solid var(--accent); }
+.message.interrupted .bubble::after { content: "interrupted"; display: block; font-size: 0.75rem; color: var(--muted); font-style: italic; margin-top: 0.25rem; }
+.message.transcription.user .bubble { opacity: 0.9; border: 1px solid var(--border); }
 .message.transcription.user .bubble::before { content: "🎤"; opacity: 0.8; margin-right: 0.25rem; }
-.typing-indicator { display: inline-block; margin-left: 0.25rem; color: #5f6368; }
+.typing-indicator { display: inline-block; margin-left: 0.25rem; color: var(--muted); }
 .typing-indicator::after { content: "..."; animation: ellipsis 1.5s infinite; }
 @keyframes ellipsis { 0%,20% { content: "."; } 40% { content: ".."; } 60%,100% { content: "..."; } }
 @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.bubble.image-bubble { padding: 0.25rem; max-width: 80%; }
-.bubble-image { max-width: 100%; max-height: 300px; width: auto; height: auto; border-radius: 0.75rem; display: block; object-fit: contain; }
+.bubble.image-bubble { padding: 0.25rem; max-width: 80%; border: none !important; background: transparent !important; box-shadow: none !important; }
+.bubble-image { max-width: 100%; max-height: 300px; width: auto; height: auto; border-radius: 1rem; display: block; object-fit: contain; }
 
 /* Status indicator dot — toggled by app.js */
-.status-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #34a853; display: inline-block; }
-.status-indicator.disconnected { background-color: #ea4335; }
+.status-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #10a37f; display: inline-block; }
+.status-indicator.disconnected { background-color: #ef4444; }
 
-/* Console entries — created dynamically by app.js */
-.console-entry { margin-bottom: 0.75rem; padding: 0.5rem; border-left: 3px solid transparent; background-color: rgba(255,255,255,0.06); border-radius: 0.25rem; transition: background-color 0.2s ease; }
-.console-entry.outgoing { border-left-color: #4285f4; }
-.console-entry.incoming { border-left-color: #34a853; }
-.console-entry.error { border-left-color: #ea4335; background-color: rgba(234,67,53,0.15); }
+/* Console entries — created dynamically by app.js - Light Theme */
+.console-entry { margin-bottom: 0.75rem; padding: 0.75rem; border-left: 3px solid transparent; background-color: var(--surface); border-radius: 0.5rem; border: 1px solid var(--border); transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.console-entry.outgoing { border-left-color: var(--accent); }
+.console-entry.incoming { border-left-color: #10a37f; }
+.console-entry.error { border-left-color: #ef4444; background-color: rgba(239,68,68,0.05); }
 .console-entry.expandable { cursor: pointer; }
-.console-entry.expandable:hover { background-color: rgba(255,255,255,0.10); }
-.console-entry.expanded { background-color: rgba(255,255,255,0.08); }
+.console-entry.expandable:hover { background-color: var(--surface-strong); border-color: rgba(31, 26, 22, 0.2); }
+.console-entry.expanded { background-color: var(--surface-strong); }
 .console-entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.375rem; }
 .console-entry-left { display: flex; align-items: center; gap: 0.5rem; }
 .console-entry-emoji { font-size: 0.9rem; line-height: 1; display: inline-block; user-select: none; min-width: 16px; text-align: center; }
-.console-expand-icon { font-size: 0.6rem; color: #858585; width: 12px; display: inline-block; transition: transform 0.2s ease; user-select: none; }
+.console-expand-icon { font-size: 0.6rem; color: var(--muted); width: 12px; display: inline-block; transition: transform 0.2s ease; user-select: none; }
 .console-entry-type { font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.console-entry.outgoing .console-entry-type { color: #4285f4; }
-.console-entry.incoming .console-entry-type { color: #34a853; }
-.console-entry.error .console-entry-type { color: #ea4335; }
-.console-entry-author { font-size: 0.65rem; font-weight: 500; padding: 0.125rem 0.375rem; border-radius: 0.25rem; text-transform: lowercase; letter-spacing: 0.3px; border: 1px solid; background-color: rgba(156,220,254,0.15); color: #9cdcfe; border-color: rgba(156,220,254,0.3); }
-.console-entry-author[data-author="user"] { background-color: rgba(66,133,244,0.2); color: #80b3ff; border-color: rgba(66,133,244,0.4); }
-.console-entry-author[data-author="system"] { background-color: rgba(133,133,133,0.2); color: #b0b0b0; border-color: rgba(133,133,133,0.3); }
-.console-entry-timestamp { color: #858585; font-size: 0.65rem; }
-.console-entry-content { color: #d4d4d4; white-space: pre-wrap; word-break: break-word; font-size: 0.7rem; line-height: 1.4; padding-left: 2.5rem; }
+.console-entry.outgoing .console-entry-type { color: var(--accent); }
+.console-entry.incoming .console-entry-type { color: #10a37f; }
+.console-entry.error .console-entry-type { color: #ef4444; }
+.console-entry-author { font-size: 0.65rem; font-weight: 500; padding: 0.125rem 0.375rem; border-radius: 0.25rem; text-transform: lowercase; letter-spacing: 0.3px; border: 1px solid; background-color: rgba(0,0,0,0.05); color: var(--ink); border-color: rgba(0,0,0,0.1); }
+.console-entry-author[data-author="user"] { background-color: rgba(198, 90, 46, 0.1); color: var(--accent); border-color: rgba(198, 90, 46, 0.2); }
+.console-entry-author[data-author="system"] { background-color: rgba(91, 81, 72, 0.1); color: var(--muted); border-color: rgba(91, 81, 72, 0.2); }
+.console-entry-timestamp { color: var(--muted); font-size: 0.65rem; }
+.console-entry-content { color: var(--ink); white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; line-height: 1.5; padding-left: 2rem; }
 .console-entry-content:empty { display: none; }
-.console-entry-json { background-color: #252526; padding: 0.5rem; border-radius: 0.25rem; margin-top: 0.5rem; overflow-x: auto; max-height: 400px; overflow-y: auto; transition: all 0.3s ease; }
+.console-entry-json { background-color: rgba(0,0,0,0.03); padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem; overflow-x: auto; max-height: 400px; overflow-y: auto; transition: all 0.3s ease; border: 1px solid rgba(0,0,0,0.05); }
 .console-entry-json.collapsed { display: none; }
-.console-entry-json pre { margin: 0; color: #9cdcfe; }
+.console-entry-json pre { margin: 0; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.7rem; }
 """
 
 router = APIRouter()
@@ -160,7 +184,7 @@ def _main_page() -> Html:
                     ),
                     cls="flex-none flex items-center gap-4 flex-wrap",
                 ),
-                cls="navbar bg-base-100 shadow-md px-4 py-2 flex-wrap gap-4",
+                cls="navbar bg-[var(--surface-strong)] shadow-sm px-4 py-2 flex-wrap gap-4 border-b border-[var(--border)]",
             ),
             # ── Main layout ────────────────────────────────────────────────────
             Main(
@@ -175,58 +199,58 @@ def _main_page() -> Html:
                                 name="message",
                                 placeholder="Type your message here...",
                                 autocomplete="off",
-                                cls="input input-bordered flex-1",
+                                cls="input input-bordered flex-1 bg-transparent border-[var(--border)] text-[var(--ink)] focus:outline-none focus:border-gray-400 placeholder:text-gray-400",
                             ),
-                            Button("Send", type="submit", id="sendButton", cls="btn btn-primary", disabled=True),
-                            Button("Start Audio", type="button", id="startAudioButton", cls="btn btn-success"),
-                            Button("📷 Camera", type="button", id="cameraButton", cls="btn btn-error"),
+                            Button("Send", type="submit", id="sendButton", cls="btn bg-transparent border border-[var(--border)] text-gray-700 hover:bg-[var(--border)] shadow-none", disabled=True),
+                            Button("Start Audio", type="button", id="startAudioButton", cls="btn bg-transparent border border-[var(--border)] text-gray-700 hover:bg-[var(--border)] shadow-none"),
+                            Button("📷 Camera", type="button", id="cameraButton", cls="btn bg-transparent border border-[var(--border)] text-gray-700 hover:bg-[var(--border)] shadow-none"),
                             id="messageForm",
                             cls="flex gap-2 w-full items-center",
                         ),
-                        cls="p-4 bg-base-200 border-t border-base-300",
+                        cls="p-4 bg-transparent border-t border-[var(--border)]",
                     ),
-                    cls="flex-[2] flex flex-col bg-base-100 rounded-box shadow-md overflow-hidden",
+                    cls="flex-[2] flex flex-col bg-transparent rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden",
                 ),
                 # Console panel
                 Div(
                     Div(
                         H2(
                             "Event Console",
-                            cls="text-sm font-semibold text-[#cccccc] uppercase tracking-wider",
+                            cls="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider",
                         ),
                         Div(
                             Label(
-                                Input(type="checkbox", id="showAudioEvents", cls="checkbox checkbox-xs"),
-                                Span("Show audio", cls="label-text text-[#999999] text-xs"),
+                                Input(type="checkbox", id="showAudioEvents", cls="checkbox checkbox-xs border-[var(--border)]"),
+                                Span("Show audio", cls="label-text text-[var(--muted)] text-xs"),
                                 cls="label cursor-pointer gap-2 p-0",
                             ),
-                            Button("Clear", id="clearConsole", cls="btn btn-xs btn-ghost text-[#cccccc]"),
+                            Button("Clear", id="clearConsole", cls="btn btn-xs btn-ghost text-[var(--muted)] hover:bg-[var(--border)]"),
                             cls="flex items-center gap-3",
                         ),
-                        cls="flex justify-between items-center p-3 bg-[#2d2d2d] border-b border-[#3e3e3e]",
+                        cls="flex justify-between items-center p-3 bg-[var(--surface)] border-b border-[var(--border)]",
                     ),
-                    Div(id="consoleContent", cls="flex-1 overflow-y-auto p-3 text-xs leading-relaxed"),
+                    Div(id="consoleContent", cls="flex-1 overflow-y-auto p-3 text-xs leading-relaxed bg-transparent"),
                     cls=(
-                        "flex-1 flex flex-col bg-[#1e1e1e] text-[#d4d4d4] rounded-box shadow-md "
+                        "flex-1 flex flex-col bg-transparent text-[var(--ink)] rounded-2xl shadow-sm border border-[var(--border)] "
                         "overflow-hidden max-h-[70vh] lg:max-h-full font-mono"
                     ),
                 ),
-                cls="flex-1 flex flex-col lg:flex-row gap-4 p-4 max-w-[1800px] mx-auto w-full overflow-hidden",
+                cls="flex-1 flex flex-col lg:flex-row gap-4 p-4 max-w-[1800px] mx-auto w-full overflow-hidden bg-transparent",
             ),
             # ── Camera modal (DaisyUI dialog) ──────────────────────────────────
             Dialog(
                 Div(
-                    H3("Camera Preview", cls="font-bold text-lg mb-4"),
+                    H3("Camera Preview", cls="font-bold text-lg mb-4 text-[var(--ink)]"),
                     Div(
                         Video(id="cameraPreview", autoplay=True, playsinline=True, cls="max-w-full h-auto"),
                         cls="bg-black rounded-box overflow-hidden flex justify-center mb-4",
                     ),
                     Div(
-                        Button("Cancel", id="cancelCamera", cls="btn"),
-                        Button("📷 Send Image", id="captureImage", cls="btn btn-primary"),
+                        Button("Cancel", id="cancelCamera", cls="btn bg-transparent border border-gray-300 text-[var(--ink)] hover:bg-gray-100"),
+                        Button("📷 Send Image", id="captureImage", cls="btn bg-transparent border border-gray-300 text-[var(--ink)] hover:bg-gray-100"),
                         cls="modal-action",
                     ),
-                    cls="modal-box w-11/12 max-w-2xl",
+                    cls="modal-box w-11/12 max-w-2xl bg-[var(--surface-strong)]",
                 ),
                 Form(
                     Button("close", id="closeCameraModal", aria_label="Close"),
@@ -236,8 +260,7 @@ def _main_page() -> Html:
                 id="cameraModal",
                 cls="modal",
             ),
-            data_theme="corporate",
-            cls="min-h-screen bg-base-200 text-base-content flex flex-col",
+            cls="min-h-screen flex flex-col",
         ),
     )
 
@@ -246,7 +269,7 @@ def _recall_page() -> Html:
     return Html(
         _frontend_head(
             title="Gemini Live Runtime",
-            css="",
+            css=_STYLE_CSS,
             script_href="/assets/js/recall.js?v=20260308",
         ),
         Body(
@@ -254,38 +277,38 @@ def _recall_page() -> Html:
                 # ── Debug Controls (hidden unless debug mode) ──────────────────
                 Section(
                     Div(
-                        H2("Debug Controls", cls="card-title"),
+                        H2("Debug Controls", cls="card-title text-[var(--ink)]"),
                         P(
                             "Local-only controls for testing the same conversational runtime.",
-                            cls="text-sm opacity-70 mb-4",
+                            cls="text-sm opacity-70 mb-4 text-[var(--muted)]",
                         ),
                         # Input grid
                         Div(
                             Div(
                                 Label(
-                                    Span("WebSocket URL", cls="label-text"),
+                                    Span("WebSocket URL", cls="label-text text-[var(--ink)]"),
                                     cls="label",
                                 ),
-                                Input(type="text", id="wsUrl", spellcheck="false", cls="input input-bordered input-sm w-full"),
+                                Input(type="text", id="wsUrl", spellcheck="false", cls="input input-bordered input-sm w-full bg-transparent border-gray-300"),
                                 cls="form-control",
                             ),
                             Div(
-                                Label(Span("User ID", cls="label-text"), cls="label"),
-                                Input(type="text", id="userId", spellcheck="false", cls="input input-bordered input-sm w-full"),
+                                Label(Span("User ID", cls="label-text text-[var(--ink)]"), cls="label"),
+                                Input(type="text", id="userId", spellcheck="false", cls="input input-bordered input-sm w-full bg-transparent border-gray-300"),
                                 cls="form-control",
                             ),
                             Div(
-                                Label(Span("Session ID", cls="label-text"), cls="label"),
-                                Input(type="text", id="sessionId", spellcheck="false", cls="input input-bordered input-sm w-full"),
+                                Label(Span("Session ID", cls="label-text text-[var(--ink)]"), cls="label"),
+                                Input(type="text", id="sessionId", spellcheck="false", cls="input input-bordered input-sm w-full bg-transparent border-gray-300"),
                                 cls="form-control",
                             ),
                             Div(
-                                Label(Span("Input source", cls="label-text"), cls="label"),
+                                Label(Span("Input source", cls="label-text text-[var(--ink)]"), cls="label"),
                                 Select(
                                     Option("None", value="none"),
                                     Option("Microphone", value="microphone"),
                                     id="inputSource",
-                                    cls="select select-bordered select-sm w-full",
+                                    cls="select select-bordered select-sm w-full bg-transparent border-gray-300",
                                 ),
                                 cls="form-control",
                             ),
@@ -294,55 +317,55 @@ def _recall_page() -> Html:
                         # Toggle checkboxes
                         Div(
                             Label(
-                                Input(type="checkbox", id="autoReconnect", checked=True, cls="checkbox checkbox-primary checkbox-sm"),
-                                Span("Auto reconnect", cls="label-text"),
+                                Input(type="checkbox", id="autoReconnect", checked=True, cls="checkbox checkbox-primary checkbox-sm border-gray-300"),
+                                Span("Auto reconnect", cls="label-text text-[var(--ink)]"),
                                 cls="label cursor-pointer gap-2",
                             ),
                             Label(
-                                Input(type="checkbox", id="autoEnableAudio", checked=True, cls="checkbox checkbox-primary checkbox-sm"),
-                                Span("Enable audio output on connect", cls="label-text"),
+                                Input(type="checkbox", id="autoEnableAudio", checked=True, cls="checkbox checkbox-primary checkbox-sm border-gray-300"),
+                                Span("Enable audio output on connect", cls="label-text text-[var(--ink)]"),
                                 cls="label cursor-pointer gap-2",
                             ),
                             cls="flex flex-wrap gap-6 mb-4",
                         ),
                         # Action buttons
                         Div(
-                            Button("Connect", type="button", id="connectButton", cls="btn btn-primary btn-sm"),
-                            Button("Disconnect", type="button", id="disconnectButton", cls="btn btn-neutral btn-sm", disabled=True),
-                            Button("Start Input", type="button", id="startInputButton", cls="btn btn-secondary btn-sm", disabled=True),
-                            Button("Stop Input", type="button", id="stopInputButton", cls="btn btn-warning btn-sm", disabled=True),
-                            Button("Enable Audio Output", type="button", id="enableAudioButton", cls="btn btn-accent btn-sm"),
-                            Button("Clear Feed", type="button", id="resetFeedButton", cls="btn btn-ghost btn-sm"),
+                            Button("Connect", type="button", id="connectButton", cls="btn bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 shadow-none btn-sm"),
+                            Button("Disconnect", type="button", id="disconnectButton", cls="btn bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 shadow-none btn-sm", disabled=True),
+                            Button("Start Input", type="button", id="startInputButton", cls="btn bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 shadow-none btn-sm", disabled=True),
+                            Button("Stop Input", type="button", id="stopInputButton", cls="btn bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 shadow-none btn-sm", disabled=True),
+                            Button("Enable Audio Output", type="button", id="enableAudioButton", cls="btn bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 shadow-none btn-sm"),
+                            Button("Clear Feed", type="button", id="resetFeedButton", cls="btn bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 shadow-none btn-sm"),
                             cls="flex flex-wrap gap-2 mb-6",
                         ),
                         # Status stats
                         Div(
                             Div(
-                                Div("Connection", cls="stat-title text-xs"),
-                                Div("idle", id="connectionState", cls="stat-value text-sm font-bold"),
+                                Div("Connection", cls="stat-title text-xs text-[var(--muted)]"),
+                                Div("idle", id="connectionState", cls="stat-value text-sm font-bold text-[var(--ink)]"),
                                 cls="stat p-3",
                             ),
                             Div(
-                                Div("Input", cls="stat-title text-xs"),
-                                Div("none", id="inputState", cls="stat-value text-sm font-bold"),
+                                Div("Input", cls="stat-title text-xs text-[var(--muted)]"),
+                                Div("none", id="inputState", cls="stat-value text-sm font-bold text-[var(--ink)]"),
                                 cls="stat p-3",
                             ),
                             Div(
-                                Div("Audio Output", cls="stat-title text-xs"),
-                                Div("disabled", id="audioOutputState", cls="stat-value text-sm font-bold"),
+                                Div("Audio Output", cls="stat-title text-xs text-[var(--muted)]"),
+                                Div("disabled", id="audioOutputState", cls="stat-value text-sm font-bold text-[var(--ink)]"),
                                 cls="stat p-3",
                             ),
                             Div(
-                                Div("Session", cls="stat-title text-xs"),
-                                Div("unassigned", id="sessionState", cls="stat-value text-sm font-bold break-all"),
+                                Div("Session", cls="stat-title text-xs text-[var(--muted)]"),
+                                Div("unassigned", id="sessionState", cls="stat-value text-sm font-bold break-all text-[var(--ink)]"),
                                 cls="stat p-3",
                             ),
                             Div(
-                                Div("Last Event", cls="stat-title text-xs"),
-                                Div("waiting", id="lastEventState", cls="stat-value text-sm font-bold"),
+                                Div("Last Event", cls="stat-title text-xs text-[var(--muted)]"),
+                                Div("waiting", id="lastEventState", cls="stat-value text-sm font-bold text-[var(--ink)]"),
                                 cls="stat p-3",
                             ),
-                            cls="stats stats-vertical lg:stats-horizontal shadow bg-base-200",
+                            cls="stats stats-vertical lg:stats-horizontal shadow-sm bg-[var(--surface)] border border-[var(--border)]",
                         ),
                         # Text prompt form
                         Form(
@@ -351,30 +374,29 @@ def _recall_page() -> Html:
                                 id="textPrompt",
                                 placeholder="Ask the agent something without using audio",
                                 autocomplete="off",
-                                cls="input input-bordered flex-1",
+                                cls="input input-bordered flex-1 bg-transparent border-gray-300",
                             ),
-                            Button("Send", type="submit", id="sendTextButton", cls="btn btn-primary", disabled=True),
+                            Button("Send", type="submit", id="sendTextButton", cls="btn bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 shadow-none", disabled=True),
                             id="textForm",
                             cls="mt-6 flex gap-2",
                         ),
                         cls="card-body p-6",
                     ),
-                    cls="card bg-base-100 shadow-xl debug-only",
+                    cls="card bg-[var(--surface-strong)] shadow-sm border border-[var(--border)] debug-only",
                     hidden=True,
                 ),
                 # ── Agent Feed ─────────────────────────────────────────────────
                 Section(
                     Div(
-                        H2("Agent Feed", cls="card-title border-b pb-2"),
-                        Div(id="agentFeed", cls="flex-1 overflow-y-auto space-y-3 p-2"),
-                        cls="card-body p-4 flex flex-col",
+                        H2("Agent Feed", cls="card-title border-b border-[var(--border)] pb-2 text-[var(--ink)]"),
+                        Div(id="agentFeed", cls="flex-1 overflow-y-auto space-y-3 p-2 bg-transparent"),
+                        cls="card-body p-4 flex flex-col bg-transparent",
                     ),
-                    cls="card bg-base-100 shadow-xl flex-1 min-h-[60vh]",
+                    cls="card bg-transparent shadow-sm border border-[var(--border)] flex-1 min-h-[60vh]",
                 ),
-                cls="max-w-5xl mx-auto flex flex-col gap-4",
+                cls="max-w-5xl mx-auto flex flex-col gap-4 w-full",
             ),
-            data_theme="emerald",
-            cls="bg-base-200 min-h-screen text-base-content p-4",
+            cls="min-h-screen p-4 flex flex-col",
         ),
     )
 
