@@ -114,6 +114,9 @@ fastapi dev
 
 Then open `http://127.0.0.1:8000` in your browser to use the original Gemini Live demo UI.
 
+The new read-only meeting dashboard is mounted at `http://127.0.0.1:8000/dashboard/`.
+It uses the existing `meeting_invite` table as its data source, so the upcoming calendar panel reflects persisted Gmail invite emails rather than a live Google Calendar sync.
+
 <!--
 ## Minimal Recall Bot Setup (No Recording)
 

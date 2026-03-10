@@ -18,6 +18,7 @@ from google.genai import types
 from app.api.api_v1 import api_router
 from app.api.endpoints.meetings import meetings_store
 from app.services.google_search_agent.agent import agent
+from app.web.dashboard import mount_dashboard
 from app.web.router import router as web_router
 
 # Configure logging
@@ -42,6 +43,7 @@ app = FastAPI()
 # Include API and web routers
 app.include_router(api_router)
 app.include_router(web_router)
+mount_dashboard(app)
 
 # Mount static files (CSS/JS assets only — HTML pages live in templates/)
 static_dir = Path(__file__).parent / "static"
