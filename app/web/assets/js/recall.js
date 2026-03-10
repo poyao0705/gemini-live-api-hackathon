@@ -78,8 +78,7 @@ function updateLastEvent(value) {
 
 function appendEvent(title, text, meta = "") {
   const event = document.createElement("div");
-  event.className =
-    "event card border border-base-300 bg-base-100/80 shadow-sm";
+  event.className = "event card border border-base-300 bg-base-100/80 shadow-sm";
 
   const titleEl = document.createElement("p");
   titleEl.className = "text-sm font-semibold text-base-content";

@@ -266,8 +266,7 @@ function createImageBubble(imageDataUrl, isUser) {
   messageDiv.className = `message ${isUser ? "user" : "agent"} w-full`;
 
   const bubbleDiv = document.createElement("div");
-  bubbleDiv.className =
-    "bubble image-bubble border border-base-300/60 shadow-sm";
+  bubbleDiv.className = "bubble image-bubble border border-base-300/60 shadow-sm";
 
   const img = document.createElement("img");
   img.src = imageDataUrl;

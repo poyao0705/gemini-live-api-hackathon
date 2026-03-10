@@ -5,10 +5,8 @@ import base64
 import json
 import logging
 import warnings
-from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
 from google.adk.agents.live_request_queue import LiveRequestQueue
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
@@ -44,10 +42,6 @@ app = FastAPI()
 app.include_router(api_router)
 app.include_router(web_router)
 mount_dashboard(app)
-
-# Mount static files (CSS/JS assets only — HTML pages live in templates/)
-static_dir = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Define your session service
 session_service = InMemorySessionService()

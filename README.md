@@ -114,6 +114,10 @@ fastapi dev
 
 Then open `http://127.0.0.1:8000` in your browser to use the original Gemini Live demo UI.
 
+The main demo UI at `/`, the Recall runtime at `/recall`, and the FastHTML dashboard at `/dashboard/` now all load Tailwind CSS and daisyUI from CDN. That means you can use Tailwind utility classes and daisyUI component classes across the repo's frontend entrypoints without adding a Node build pipeline.
+
+The `/` and `/recall` pages are now rendered from Python with FastHTML instead of serving template files. Their browser CSS/JS assets also moved out of `app/static` and now live under `app/web/assets`, served by the web router at `/assets/...`.
+
 The new read-only meeting dashboard is mounted at `http://127.0.0.1:8000/dashboard/`.
 It uses the existing `meeting_invite` table as its data source, so the upcoming calendar panel reflects persisted Gmail invite emails rather than a live Google Calendar sync.
 

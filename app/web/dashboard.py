@@ -12,15 +12,33 @@ from fasthtml.common import *  # noqa: F403
 from app.services.meetings.invites import meeting_invite_store
 
 
-dashboard_app, rt = fast_app(
-    pico=False,
-    default_hdrs=False,
-    hdrs=(
+_DASHBOARD_CSS = ':root {\n  --bg: #f4efe4;\n  --surface: rgba(255, 250, 242, 0.84);\n  --surface-strong: #fffaf1;\n  --ink: #1f1a16;\n  --muted: #5b5148;\n  --accent: #c65a2e;\n  --accent-soft: #f2c8a9;\n  --border: rgba(31, 26, 22, 0.12);\n  --shadow: 0 22px 60px rgba(92, 57, 31, 0.12);\n}\n\n* {\n  box-sizing: border-box;\n}\n\nbody {\n  margin: 0;\n  min-height: 100vh;\n  color: var(--ink);\n  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;\n  background:\n    radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 36%),\n    radial-gradient(circle at top right, rgba(198, 90, 46, 0.12), transparent 28%),\n    linear-gradient(180deg, #efe2cf 0%, var(--bg) 48%, #efe7da 100%);\n}\n\na {\n  color: inherit;\n}\n\n.dashboard-shell {\n  width: min(1180px, calc(100vw - 32px));\n  margin: 0 auto;\n  padding: 32px 0 56px;\n}\n\n.hero {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  gap: 32px;\n  align-items: start;\n  padding: 32px;\n  border: 1px solid var(--border);\n  border-radius: 28px;\n  background:\n    linear-gradient(135deg, rgba(255, 252, 247, 0.94), rgba(255, 243, 229, 0.88)),\n    linear-gradient(45deg, rgba(198, 90, 46, 0.08), transparent 60%);\n  box-shadow: var(--shadow);\n}\n\n.hero-intro {\n  min-width: 0;\n  width: 100%;\n  justify-self: start;\n  align-self: start;\n  margin-right: auto;\n  text-align: left;\n}\n\n.hero-aside {\n  display: flex;\n  justify-content: flex-end;\n  justify-self: end;\n  align-self: center;\n  width: max-content;\n  max-width: 100%;\n}\n\n.eyebrow {\n  margin: 0 0 10px;\n  color: var(--accent);\n  font-family: "Avenir Next", "Segoe UI", sans-serif;\n  font-size: 0.82rem;\n  font-weight: 700;\n  letter-spacing: 0.18em;\n  text-transform: uppercase;\n}\n\n.hero-title {\n  margin: 0;\n  max-width: 7ch;\n  font-size: clamp(3rem, 7vw, 5.4rem);\n  line-height: 0.9;\n  letter-spacing: -0.05em;\n}\n\n.hero-copy,\n.section-copy,\n.meeting-organizer,\n.meeting-link--muted,\n.empty-state,\n.calendar-day-events,\n.agenda-day-label {\n  color: var(--muted);\n}\n\n.hero-copy {\n  max-width: 34rem;\n  margin: 16px 0 0;\n  font-size: 1.05rem;\n  line-height: 1.65;\n}\n\n.hero-stats {\n  display: grid;\n  gap: 12px;\n  width: min(380px, 100%);\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n  padding: 12px;\n  border: 1px solid rgba(198, 90, 46, 0.12);\n  border-radius: 26px;\n  background: rgba(255, 250, 242, 0.72);\n  box-shadow: 0 16px 36px rgba(92, 57, 31, 0.08);\n  backdrop-filter: blur(12px);\n}\n\n.hero-stat {\n  min-width: 0;\n  padding: 18px 16px;\n  border: 1px solid rgba(198, 90, 46, 0.18);\n  border-radius: 22px;\n  background: rgba(255, 250, 242, 0.84);\n}\n\n.hero-stat-value {\n  display: block;\n  font-size: 2rem;\n  font-weight: 700;\n}\n\n.hero-stat-label,\n.meeting-time {\n  font-family: "Avenir Next", "Segoe UI", sans-serif;\n  letter-spacing: 0.02em;\n}\n\n.hero-stat-label {\n  display: block;\n  font-size: 0.95rem;\n  line-height: 1.25;\n}\n\n.dashboard-grid {\n  display: grid;\n  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.95fr);\n  gap: 24px;\n  margin-top: 24px;\n  align-items: start;\n}\n\n.content-panel {\n  padding: 24px;\n  border: 1px solid var(--border);\n  border-radius: 28px;\n  background: var(--surface);\n  backdrop-filter: blur(10px);\n  box-shadow: var(--shadow);\n}\n\n.section-heading h2,\n.calendar-header h3,\n.meeting-title {\n  margin: 0;\n}\n\n.section-heading {\n  margin-bottom: 18px;\n}\n\n.meeting-list,\n.agenda-items,\n.calendar-agenda,\n.agenda-day-group {\n  display: grid;\n  gap: 14px;\n}\n\n.meeting-card {\n  padding: 18px;\n  border: 1px solid rgba(31, 26, 22, 0.08);\n  border-radius: 20px;\n  background: var(--surface-strong);\n}\n\n.meeting-card--compact {\n  padding: 16px;\n}\n\n.meeting-meta-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.meeting-badge {\n  display: inline-flex;\n  align-items: center;\n  padding: 6px 10px;\n  border-radius: 999px;\n  font-family: "Avenir Next", "Segoe UI", sans-serif;\n  font-size: 0.76rem;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.meeting-badge--scheduled {\n  background: rgba(198, 90, 46, 0.12);\n  color: #8b3d1d;\n}\n\n.meeting-badge--canceled {\n  background: rgba(95, 43, 35, 0.12);\n  color: #6b2a22;\n}\n\n.meeting-title {\n  margin-top: 12px;\n  font-size: 1.25rem;\n}\n\n.meeting-organizer,\n.meeting-link,\n.meeting-link--muted,\n.empty-state {\n  margin: 8px 0 0;\n}\n\n.meeting-link {\n  font-family: "Avenir Next", "Segoe UI", sans-serif;\n  font-weight: 700;\n  text-decoration: none;\n}\n\n.meeting-link:hover {\n  text-decoration: underline;\n}\n\n.calendar-shell {\n  margin-bottom: 20px;\n  padding: 20px;\n  border-radius: 24px;\n  background: linear-gradient(180deg, rgba(255, 250, 242, 0.94), rgba(245, 232, 217, 0.78));\n}\n\n.calendar-header {\n  margin-bottom: 14px;\n}\n\n.calendar-weekdays,\n.calendar-grid {\n  display: grid;\n  grid-template-columns: repeat(7, minmax(0, 1fr));\n  gap: 8px;\n}\n\n.calendar-weekday {\n  text-align: center;\n  font-family: "Avenir Next", "Segoe UI", sans-serif;\n  font-size: 0.76rem;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.calendar-cell {\n  min-height: 72px;\n  padding: 10px;\n  border: 1px solid rgba(31, 26, 22, 0.08);\n  border-radius: 16px;\n  background: rgba(255, 255, 255, 0.55);\n}\n\n.calendar-cell--active {\n  background: rgba(198, 90, 46, 0.14);\n  border-color: rgba(198, 90, 46, 0.24);\n}\n\n.calendar-cell--selected {\n  border-color: rgba(198, 90, 46, 0.72);\n  box-shadow: inset 0 0 0 1px rgba(198, 90, 46, 0.24);\n}\n\n.calendar-cell--empty {\n  visibility: hidden;\n}\n\n.calendar-day-link {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  min-height: 100%;\n  color: inherit;\n  text-decoration: none;\n}\n\n.calendar-day-link:hover {\n  text-decoration: none;\n}\n\n.calendar-day-link--disabled {\n  cursor: default;\n}\n\n.calendar-day-number {\n  display: block;\n  font-family: "Avenir Next", "Segoe UI", sans-serif;\n  font-weight: 700;\n  line-height: 1;\n}\n\n.calendar-day-events {\n  display: block;\n  margin-top: 8px;\n  font-size: 0.82rem;\n}\n\n.calendar-day-dot {\n  display: block;\n  width: 8px;\n  height: 8px;\n  margin-top: 8px;\n  border-radius: 999px;\n  background: var(--accent);\n}\n\n@media (max-width: 1100px) {\n  .dashboard-grid {\n    grid-template-columns: 1fr;\n  }\n\n  .hero {\n    display: flex;\n    flex-direction: column;\n    gap: 24px;\n    align-items: stretch;\n  }\n\n  .hero-aside {\n    justify-content: flex-start;\n    width: 100%;\n    max-width: 100%;\n    align-self: stretch;\n  }\n\n  .hero-stats {\n    width: 100%;\n    max-width: 100%;\n    grid-template-columns: repeat(3, minmax(0, 1fr));\n  }\n\n  .dashboard-shell {\n    width: min(100vw - 20px, 1180px);\n    padding-top: 20px;\n  }\n}\n\n@media (max-width: 780px) {\n  .hero-stats {\n    grid-template-columns: 1fr;\n  }\n}\n\n@media (max-width: 640px) {\n  .hero,\n  .content-panel {\n    padding: 20px;\n    border-radius: 22px;\n  }\n\n  .hero-copy {\n    max-width: none;\n  }\n\n  .hero-title {\n    max-width: none;\n  }\n\n  .calendar-weekdays,\n  .calendar-grid {\n    gap: 6px;\n  }\n\n  .calendar-cell {\n    min-height: 64px;\n    padding: 8px;\n  }\n}'
+
+dashboard_app, rt = fast_app(pico=False, default_hdrs=False)
+
+
+def _dashboard_head() -> Head:
+    return Head(
+        Title("Meetloaf Dashboard"),
+        Meta(name="viewport", content="width=device-width, initial-scale=1"),
         Script(src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"),
-        Link(rel="stylesheet", href="/static/css/dashboard.css", type="text/css"),
+        Link(
+            rel="stylesheet",
+            href="https://cdn.jsdelivr.net/npm/daisyui@5",
+            type="text/css",
+        ),
+        Script(src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"),
+        Style(NotStr(_DASHBOARD_CSS)),
         Style(":root { color-scheme: light; }"),
-    ),
-)
+    )
+
+
+def _meeting_badge_class(status: str) -> str:
+    color_variant = {
+        "scheduled": "badge-warning",
+        "canceled": "badge-error",
+    }.get(status, "badge-neutral")
+    return f"meeting-badge meeting-badge--{status} badge badge-outline {color_variant}"
 
 
 def mount_dashboard(app: Any) -> None:
@@ -128,7 +146,9 @@ def _month_grid(
 def _meeting_card(item: dict[str, Any], *, compact: bool = False, allow_join_link: bool = True) -> Article:
     details = item.get("meeting_details_json") or {}
     status = item.get("meeting_status", "scheduled")
-    card_cls = "meeting-card meeting-card--compact" if compact else "meeting-card"
+    card_cls = "meeting-card border border-base-200 bg-base-100/70 shadow-sm"
+    if compact:
+        card_cls += " meeting-card--compact"
     join_link = None
     if status == "canceled":
         join_link = P("Meeting was canceled", cls="meeting-link meeting-link--muted")
@@ -138,7 +158,7 @@ def _meeting_card(item: dict[str, Any], *, compact: bool = False, allow_join_lin
             href=item.get("join_url"),
             target="_blank",
             rel="noopener noreferrer",
-            cls="meeting-link",
+            cls="meeting-link btn btn-link btn-sm px-0 no-underline hover:no-underline",
         )
     elif item.get("is_ongoing"):
         join_link = P("Join link unavailable", cls="meeting-link meeting-link--muted")
@@ -149,7 +169,7 @@ def _meeting_card(item: dict[str, Any], *, compact: bool = False, allow_join_lin
 
     return Article(
         Div(
-            Span(status.title(), cls=f"meeting-badge meeting-badge--{status}"),
+            Span(status.title(), cls=_meeting_badge_class(status)),
             Small(_format_meeting_datetime(item.get("join_at")), cls="meeting-time"),
             cls="meeting-meta-row",
         ),
@@ -282,11 +302,7 @@ async def dashboard(email_address: str | None = None, selected_date: str | None 
     )
 
     return Html(
-        Head(
-            Title("Meetloaf Dashboard"),
-            Script(src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"),
-            Link(rel="stylesheet", href="/static/css/dashboard.css", type="text/css"),
-        ),
+        _dashboard_head(),
         Body(
             Main(
                 Header(
@@ -298,8 +314,9 @@ async def dashboard(email_address: str | None = None, selected_date: str | None 
                             "Upcoming events come from captured Gmail invite emails.",
                             cls="hero-copy",
                         ),
+                        cls="hero-intro",
                     ),
-                    count_block,
+                    Div(count_block, cls="hero-aside"),
                     cls="hero",
                 ),
                 Div(
@@ -333,6 +350,8 @@ async def dashboard(email_address: str | None = None, selected_date: str | None 
                     cls="dashboard-grid",
                 ),
                 cls="dashboard-shell",
-            )
+            ),
+            data_theme="lofi",
+            cls="min-h-screen",
         ),
     )
