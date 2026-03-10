@@ -39,8 +39,10 @@ View all guest info
     assert details["guests"] == ["jobmate.agent@gmail.com"]
     assert details["agenda"] == []
     assert details["agenda_confidence"] == "none"
+    assert details["email_event_type"] == "created"
     assert details["event_status"] == "confirmed"
     assert details["is_canceled"] is False
+    assert details["join_at"] == "2026-03-10T10:00:00+11:00"
 
 
 def test_extract_meeting_details_with_explicit_agenda_section() -> None:
@@ -90,6 +92,7 @@ Po-Yao Huang
 
     assert details is not None
     assert details["title"] == "黃柏堯's Zoom Meeting"
+    assert details["email_event_type"] == "canceled"
     assert details["event_status"] == "canceled"
     assert details["is_canceled"] is True
     assert details["agenda"] == ["discuss ai agent development details"]
@@ -126,6 +129,44 @@ Po-Yao Huang
         "discuss future action items of the new ai research",
     ]
     assert details["agenda_confidence"] == "explicit"
+
+
+def test_extract_meeting_details_for_updated_google_calendar_invite() -> None:
+    subject = "Updated invitation: test meeting @ Tue Mar 10, 2026 2:15pm - 3:15pm (GMT+11) (jobmate.agent@gmail.com)"
+    body_text = """This event has been updated
+Changed: time
+
+test meeting
+Tuesday Mar 10, 2026 ⋅ 2:15pm – 3:15pm
+Australian Eastern Time - Sydney
+
+Join with Google Meet
+https://meet.google.com/afi-dqnj-bib?hs=224
+
+agenda:
+test meeting
+
+Organizer
+Po-Yao Huang
+poyaohg0705@gmail.com
+
+Guests
+Po-Yao Huang - organizer
+jobmate.agent@gmail.com
+View all guest info
+https://calendar.google.com/calendar/event?action=VIEW&eid=NXU4aGIwdHQwNjVrdDVrM3J2OWdqNjQxa24gam9ibWF0ZS5hZ2VudEBt&tok=MjEjcG95YW9oZzA3MDVAZ21haWwuY29tYzQwN2NhODkxMDMzZDdkY2U0ODFjNGU3ZDQ4ODk2ZDY4YTVhYmUwNA&ctz=Australia%2FSydney&hl=en&es=0
+"""
+
+    details = extract_meeting_details(subject, body_text)
+
+    assert details is not None
+    assert details["title"] == "test meeting"
+    assert details["email_event_type"] == "updated"
+    assert details["event_status"] == "confirmed"
+    assert details["is_canceled"] is False
+    assert details["join_url"] == "https://meet.google.com/afi-dqnj-bib?hs=224"
+    assert details["agenda"] == ["test meeting"]
+    assert details["join_at"] == "2026-03-10T14:15:00+11:00"
 
 
 def test_extract_meeting_details_returns_none_for_non_meeting_email() -> None:

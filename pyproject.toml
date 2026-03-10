@@ -23,3 +23,8 @@ dependencies = [
     "uvloop>=0.22.1",
     "watchfiles>=1.1.1",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

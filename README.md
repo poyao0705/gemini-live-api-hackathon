@@ -11,6 +11,7 @@ This repo now includes a Gmail Push Notification webhook at `POST /gmail/webhook
 - persists the latest processed `historyId` in PostgreSQL
 - calls `users.history.list(startHistoryId=...)` with pagination
 - fetches each new message via `users.messages.get`
+- stores failed Recall bot create/update/stop actions in a manual-review queue
 - marks the account as `resync_required` if Gmail returns `404 historyId too old`
 
 ## Database setup
@@ -57,6 +58,20 @@ Create a new migration later with:
 
 ```bash
 uv run alembic revision --autogenerate -m "describe change"
+```
+
+If you pull the new Recall fallback queue changes, run:
+
+```bash
+uv run alembic upgrade head
+```
+
+Manual review endpoints for failed Recall bot automation:
+
+```bash
+GET /api/recall/failures
+POST /api/recall/failures/{queue_id}/resolve
+PATCH /api/recall/bots/{bot_id}
 ```
 
 Required environment variables:

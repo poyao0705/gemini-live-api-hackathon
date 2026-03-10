@@ -10,9 +10,10 @@ import json
 import logging
 import re
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, unquote, urlparse
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from googleapiclient.errors import HttpError
 from sqlmodel import select
@@ -91,16 +92,25 @@ AGENDA_SECTION_HEADERS = {
 }
 
 NON_TITLE_LINES = {
+    "this event has been updated",
     "this event has been canceled.",
+}
+
+SUBJECT_EVENT_TYPES = {
+    "Invitation": "created",
+    "Updated invitation": "updated",
+    "Canceled event": "canceled",
 }
 
 
 @dataclass(slots=True)
 class MeetingDetails:
     title: str | None
+    email_event_type: str
     event_status: str
     is_canceled: bool
     date_time_text: str | None
+    join_at: str | None
     timezone: str | None
     location: str | None
     join_url: str | None
@@ -134,6 +144,128 @@ def _is_agenda_header(value: str) -> bool:
     return bool(
         re.fullmatch(r"(?:the\s+)?agenda(?:\s+of\s+this\s+meeting)?(?:\s+is)?", normalized)
     )
+
+
+def _extract_subject_parts(subject: str | None) -> tuple[str | None, str | None, str | None]:
+    if not subject:
+        return None, None, None
+
+    for prefix, event_type in SUBJECT_EVENT_TYPES.items():
+        token = f"{prefix}:"
+        if not subject.startswith(token):
+            continue
+
+        remainder = subject[len(token) :].strip()
+        if " @ " not in remainder:
+            return event_type, remainder or None, None
+
+        title, schedule = remainder.split(" @ ", 1)
+        return event_type, title.strip() or None, schedule.strip() or None
+
+    return None, None, None
+
+
+def _parse_datetime_with_formats(value: str, formats: tuple[str, ...]) -> datetime | None:
+    for fmt in formats:
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _extract_calendar_timezone_id(body_text: str) -> str | None:
+    for raw_url in re.findall(r"https?://\S+", body_text):
+        candidate = raw_url.rstrip(").,;]")
+        parsed = urlparse(candidate)
+        if parsed.netloc != "calendar.google.com":
+            continue
+
+        timezone_id = parse_qs(parsed.query).get("ctz", [None])[0]
+        if timezone_id:
+            return unquote(timezone_id)
+
+    return None
+
+
+def _extract_join_at_from_body(date_time_text: str | None, body_text: str) -> str | None:
+    if not date_time_text:
+        return None
+
+    timezone_id = _extract_calendar_timezone_id(body_text)
+    if not timezone_id:
+        return None
+
+    start_text = re.split(r"\s*[–-]\s*", date_time_text.replace("⋅", " "), maxsplit=1)[0]
+    start_text = re.sub(r"\s+", " ", start_text).strip()
+    start_at = _parse_datetime_with_formats(
+        start_text,
+        (
+            "%A %b %d, %Y %I:%M%p",
+            "%A %b %d, %Y %I%p",
+            "%a %b %d, %Y %I:%M%p",
+            "%a %b %d, %Y %I%p",
+        ),
+    )
+    if start_at is None:
+        return None
+
+    try:
+        return start_at.replace(tzinfo=ZoneInfo(timezone_id)).isoformat()
+    except ZoneInfoNotFoundError:
+        return None
+
+
+def _extract_join_at_from_subject(subject: str | None) -> str | None:
+    _, _, schedule = _extract_subject_parts(subject)
+    if not schedule:
+        return None
+
+    timezone_match = re.search(r"\((GMT[+-]\d{1,2}(?::\d{2})?)\)", schedule)
+    if not timezone_match:
+        return None
+
+    schedule_text = schedule[: timezone_match.start()].strip()
+    start_text = re.split(r"\s*[–-]\s*", schedule_text, maxsplit=1)[0].strip()
+    start_at = _parse_datetime_with_formats(
+        start_text,
+        (
+            "%A %b %d, %Y %I:%M%p",
+            "%A %b %d, %Y %I%p",
+            "%a %b %d, %Y %I:%M%p",
+            "%a %b %d, %Y %I%p",
+        ),
+    )
+    if start_at is None:
+        return None
+
+    offset_match = re.fullmatch(r"GMT([+-])(\d{1,2})(?::(\d{2}))?", timezone_match.group(1))
+    if not offset_match:
+        return None
+
+    sign = 1 if offset_match.group(1) == "+" else -1
+    hours = int(offset_match.group(2))
+    minutes = int(offset_match.group(3) or "0")
+    offset = timezone(sign * timedelta(hours=hours, minutes=minutes))
+    return start_at.replace(tzinfo=offset).isoformat()
+
+
+def _extract_email_event_type(subject: str | None, lines: list[str]) -> str:
+    event_type, _, _ = _extract_subject_parts(subject)
+    if event_type:
+        return event_type
+
+    first_lines = {_normalize_section_label(line) for line in lines[:3] if line}
+    if "this event has been canceled." in first_lines:
+        return "canceled"
+    if "this event has been updated" in first_lines:
+        return "updated"
+    return "created"
+
+
+def _is_non_title_line(value: str) -> bool:
+    normalized = _normalize_section_label(value)
+    return normalized in NON_TITLE_LINES or normalized.startswith("changed:")
 
 
 class GmailHistoryStateStore:
@@ -263,14 +395,13 @@ def _is_likely_email(value: str) -> bool:
 
 
 def _extract_meeting_title(subject: str | None, lines: list[str]) -> str | None:
-    if subject:
-        subject_match = re.match(r"(?:Invitation|Canceled event):\s*(.*?)\s*@\s*.+$", subject)
-        if subject_match:
-            return subject_match.group(1).strip()
+    _, subject_title, _ = _extract_subject_parts(subject)
+    if subject_title:
+        return subject_title
 
     for line in lines:
         normalized = _normalize_section_label(line)
-        if line and normalized not in CALENDAR_SECTION_HEADERS and normalized not in NON_TITLE_LINES:
+        if line and normalized not in CALENDAR_SECTION_HEADERS and not _is_non_title_line(line):
             return line
 
     return None
@@ -338,13 +469,12 @@ def extract_meeting_details(subject: str | None, body_text: str) -> dict[str, An
     if not lines:
         return None
 
+    email_event_type = _extract_email_event_type(subject, lines)
     has_meeting_subject = bool(
-        subject and re.match(r"(?:Invitation|Canceled event):\s*.+\s*@\s*.+$", subject)
+        subject
+        and re.match(r"(?:Invitation|Updated invitation|Canceled event):\s*.+\s*@\s*.+$", subject)
     )
-    is_canceled = bool(
-        (subject and subject.startswith("Canceled event:"))
-        or any(_normalize_section_label(line) in NON_TITLE_LINES for line in lines[:3])
-    )
+    is_canceled = email_event_type == "canceled"
 
     join_url = None
     for line in lines:
@@ -361,7 +491,7 @@ def extract_meeting_details(subject: str | None, body_text: str) -> dict[str, An
     guests_block = _extract_section_value(lines, "Guests")
     agenda, agenda_confidence = _extract_agenda(lines)
 
-    timezone = None
+    timezone_text = None
     date_time_text = _extract_date_time_text(lines)
     if date_time_text:
         try:
@@ -371,8 +501,12 @@ def extract_meeting_details(subject: str | None, body_text: str) -> dict[str, An
         if date_line_index >= 0:
             for candidate in lines[date_line_index + 1 : date_line_index + 4]:
                 if candidate and not _is_calendar_section_header(candidate):
-                    timezone = candidate
+                    timezone_text = candidate
                     break
+
+    join_at = _extract_join_at_from_body(date_time_text, body_text)
+    if join_at is None:
+        join_at = _extract_join_at_from_subject(subject)
 
     organizer = None
     if organizer_block:
@@ -387,10 +521,12 @@ def extract_meeting_details(subject: str | None, body_text: str) -> dict[str, An
 
     details = MeetingDetails(
         title=_extract_meeting_title(subject, lines),
+        email_event_type=email_event_type,
         event_status="canceled" if is_canceled else "confirmed",
         is_canceled=is_canceled,
         date_time_text=date_time_text,
-        timezone=timezone,
+        join_at=join_at,
+        timezone=timezone_text,
         location=location,
         join_url=join_url,
         meeting_id=meeting_id_match.group(1).strip() if meeting_id_match else None,

@@ -7,8 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
-from app.integrations.recall.client import create_bot, list_bots_for_meeting, stop_bot
+from app.api.endpoints.webhooks import RecallBotUpdateBody, update_recall_bot
+from app.integrations.recall.client import create_bot, delete_bot, list_bots_for_meeting, stop_bot, update_bot
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +78,26 @@ async def test_create_bot_uses_default_bot_name() -> None:
 
 
 @pytest.mark.anyio
+async def test_create_bot_includes_join_at_when_provided() -> None:
+    bot_payload = {"id": "bot-789"}
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_mock_response(200, bot_payload))
+
+    with patch("app.integrations.recall.client.httpx.AsyncClient", return_value=mock_client):
+        await create_bot(
+            "https://meet.google.com/abc-defg-hij",
+            bot_name="Scheduled Bot",
+            join_at="2026-03-10T14:15:00+11:00",
+        )
+
+    _, kwargs = mock_client.post.call_args
+    assert kwargs["json"]["join_at"] == "2026-03-10T14:15:00+11:00"
+
+
+@pytest.mark.anyio
 async def test_create_bot_raises_on_api_error() -> None:
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -125,6 +147,38 @@ async def test_stop_bot_raises_on_api_error() -> None:
             await stop_bot("nonexistent-bot")
 
 
+@pytest.mark.anyio
+async def test_delete_bot_calls_delete_endpoint() -> None:
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.delete = AsyncMock(return_value=_mock_response(204, {}))
+
+    with (
+        patch("app.integrations.recall.client.httpx.AsyncClient", return_value=mock_client),
+        patch("app.integrations.recall.client.settings") as mock_settings,
+    ):
+        mock_settings.recall_ai_token = "tok"
+        mock_settings.recall_ai_base_url = "https://example.recall.ai/api/v1"
+        await delete_bot("bot-scheduled")
+
+    mock_client.delete.assert_awaited_once()
+    url_arg = mock_client.delete.call_args[0][0]
+    assert url_arg.endswith("/bot/bot-scheduled/")
+
+
+@pytest.mark.anyio
+async def test_delete_bot_raises_on_api_error() -> None:
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.delete = AsyncMock(return_value=_mock_response(405, {"detail": "already dispatched"}))
+
+    with patch("app.integrations.recall.client.httpx.AsyncClient", return_value=mock_client):
+        with pytest.raises(httpx.HTTPStatusError):
+            await delete_bot("bot-scheduled")
+
+
 # ---------------------------------------------------------------------------
 # list_bots_for_meeting
 # ---------------------------------------------------------------------------
@@ -164,6 +218,44 @@ async def test_list_bots_for_meeting_returns_empty_when_no_results() -> None:
 
 
 # ---------------------------------------------------------------------------
+# update_bot
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_update_bot_patches_scheduled_bot() -> None:
+    bot_payload = {"id": "bot-123", "join_at": "2026-03-10T14:15:00+11:00"}
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.patch = AsyncMock(return_value=_mock_response(200, bot_payload))
+
+    with patch("app.integrations.recall.client.httpx.AsyncClient", return_value=mock_client):
+        result = await update_bot(
+            "bot-123",
+            meeting_url="https://meet.google.com/afi-dqnj-bib?hs=224",
+            bot_name="test meeting",
+            join_at="2026-03-10T14:15:00+11:00",
+        )
+
+    assert result == bot_payload
+    mock_client.patch.assert_awaited_once()
+    _, kwargs = mock_client.patch.call_args
+    assert kwargs["json"] == {
+        "meeting_url": "https://meet.google.com/afi-dqnj-bib?hs=224",
+        "bot_name": "test meeting",
+        "join_at": "2026-03-10T14:15:00+11:00",
+    }
+
+
+@pytest.mark.anyio
+async def test_update_bot_requires_at_least_one_field() -> None:
+    with pytest.raises(ValueError):
+        await update_bot("bot-123")
+
+
+# ---------------------------------------------------------------------------
 # Webhook _handle_recall_bots helper
 # ---------------------------------------------------------------------------
 
@@ -177,6 +269,8 @@ async def test_handle_recall_bots_creates_bot_for_invitation() -> None:
             {
                 "meeting_details": {
                     "join_url": "https://zoom.us/j/111",
+                    "title": "Weekly Sync",
+                    "join_at": "2026-03-10T14:15:00+11:00",
                     "is_canceled": False,
                 }
             }
@@ -187,7 +281,85 @@ async def test_handle_recall_bots_creates_bot_for_invitation() -> None:
         mock_create.return_value = {"id": "bot-new"}
         await _handle_recall_bots(gmail_result)
 
-    mock_create.assert_awaited_once_with("https://zoom.us/j/111")
+    mock_create.assert_awaited_once_with(
+        "https://zoom.us/j/111",
+        bot_name="Weekly Sync",
+        join_at="2026-03-10T14:15:00+11:00",
+    )
+
+
+@pytest.mark.anyio
+async def test_handle_recall_bots_updates_existing_bots_for_updated_invitation() -> None:
+    from app.api.endpoints.webhooks import _handle_recall_bots
+
+    gmail_result = {
+        "messages": [
+            {
+                "meeting_details": {
+                    "join_url": "https://meet.google.com/afi-dqnj-bib?hs=224",
+                    "title": "test meeting",
+                    "join_at": "2026-03-10T14:15:00+11:00",
+                    "email_event_type": "updated",
+                    "is_canceled": False,
+                }
+            }
+        ]
+    }
+
+    with (
+        patch(
+            "app.api.endpoints.webhooks.list_bots_for_meeting",
+            new_callable=AsyncMock,
+        ) as mock_list,
+        patch(
+            "app.api.endpoints.webhooks.update_bot",
+            new_callable=AsyncMock,
+        ) as mock_update,
+        patch("app.api.endpoints.webhooks.create_bot", new_callable=AsyncMock) as mock_create,
+    ):
+        mock_list.return_value = [{"id": "bot-old-1"}, {"id": "bot-old-2"}]
+        await _handle_recall_bots(gmail_result)
+
+    mock_list.assert_awaited_once_with("https://meet.google.com/afi-dqnj-bib?hs=224")
+    assert mock_update.await_count == 2
+    mock_create.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_handle_recall_bots_creates_bot_when_updated_invitation_has_no_existing_bot() -> None:
+    from app.api.endpoints.webhooks import _handle_recall_bots
+
+    gmail_result = {
+        "messages": [
+            {
+                "meeting_details": {
+                    "join_url": "https://meet.google.com/afi-dqnj-bib?hs=224",
+                    "title": "test meeting",
+                    "join_at": "2026-03-10T14:15:00+11:00",
+                    "email_event_type": "updated",
+                    "is_canceled": False,
+                }
+            }
+        ]
+    }
+
+    with (
+        patch(
+            "app.api.endpoints.webhooks.list_bots_for_meeting",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch("app.api.endpoints.webhooks.update_bot", new_callable=AsyncMock) as mock_update,
+        patch("app.api.endpoints.webhooks.create_bot", new_callable=AsyncMock) as mock_create,
+    ):
+        await _handle_recall_bots(gmail_result)
+
+    mock_update.assert_not_awaited()
+    mock_create.assert_awaited_once_with(
+        "https://meet.google.com/afi-dqnj-bib?hs=224",
+        bot_name="test meeting",
+        join_at="2026-03-10T14:15:00+11:00",
+    )
 
 
 @pytest.mark.anyio
@@ -211,15 +383,58 @@ async def test_handle_recall_bots_stops_bots_for_cancellation() -> None:
             new_callable=AsyncMock,
         ) as mock_list,
         patch(
-            "app.api.endpoints.webhooks.stop_bot",
+            "app.api.endpoints.webhooks.delete_bot",
             new_callable=AsyncMock,
-        ) as mock_stop,
+        ) as mock_delete,
     ):
         mock_list.return_value = [{"id": "bot-old-1"}, {"id": "bot-old-2"}]
         await _handle_recall_bots(gmail_result)
 
     mock_list.assert_awaited_once_with("https://zoom.us/j/222")
-    assert mock_stop.await_count == 2
+    assert mock_delete.await_count == 2
+
+
+@pytest.mark.anyio
+async def test_handle_recall_bots_falls_back_to_leave_call_for_dispatched_cancellation() -> None:
+    from app.api.endpoints.webhooks import _handle_recall_bots
+
+    gmail_result = {
+        "messages": [
+            {
+                "meeting_details": {
+                    "join_url": "https://zoom.us/j/333",
+                    "is_canceled": True,
+                }
+            }
+        ]
+    }
+
+    delete_error = httpx.HTTPStatusError(
+        "error",
+        request=MagicMock(),
+        response=_mock_response(405, {"detail": "already dispatched"}),
+    )
+
+    with (
+        patch(
+            "app.api.endpoints.webhooks.list_bots_for_meeting",
+            new_callable=AsyncMock,
+            return_value=[{"id": "bot-old-1"}],
+        ),
+        patch(
+            "app.api.endpoints.webhooks.delete_bot",
+            new_callable=AsyncMock,
+            side_effect=delete_error,
+        ) as mock_delete,
+        patch(
+            "app.api.endpoints.webhooks.stop_bot",
+            new_callable=AsyncMock,
+        ) as mock_stop,
+    ):
+        await _handle_recall_bots(gmail_result)
+
+    mock_delete.assert_awaited_once_with("bot-old-1")
+    mock_stop.assert_awaited_once_with("bot-old-1")
 
 
 @pytest.mark.anyio
@@ -277,11 +492,18 @@ async def test_handle_recall_bots_logs_error_on_create_failure() -> None:
     }
 
     err = httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock())
-    with patch(
-        "app.api.endpoints.webhooks.create_bot", new_callable=AsyncMock, side_effect=err
+    with (
+        patch("app.api.endpoints.webhooks.create_bot", new_callable=AsyncMock, side_effect=err),
+        patch("app.api.endpoints.webhooks._enqueue_manual_recall_action", new_callable=AsyncMock),
+        patch("app.api.endpoints.webhooks.logger.warning") as mock_warning,
     ):
         # Should not raise; error is logged instead
         await _handle_recall_bots(gmail_result)
+
+    mock_warning.assert_called_once()
+    warning_args = mock_warning.call_args[0]
+    assert "manual action required" in warning_args[0]
+    assert "create" in warning_args
 
 
 @pytest.mark.anyio
@@ -304,6 +526,75 @@ async def test_handle_recall_bots_logs_error_on_stop_failure() -> None:
         "app.api.endpoints.webhooks.list_bots_for_meeting",
         new_callable=AsyncMock,
         side_effect=err,
-    ):
+    ), patch("app.api.endpoints.webhooks._enqueue_manual_recall_action", new_callable=AsyncMock):
         # Should not raise; error is logged instead
         await _handle_recall_bots(gmail_result)
+
+
+@pytest.mark.anyio
+async def test_handle_recall_bots_logs_manual_fallback_on_update_failure() -> None:
+    from app.api.endpoints.webhooks import _handle_recall_bots
+
+    gmail_result = {
+        "messages": [
+            {
+                "meeting_details": {
+                    "join_url": "https://meet.google.com/afi-dqnj-bib?hs=224",
+                    "title": "test meeting",
+                    "join_at": "2026-03-10T14:15:00+11:00",
+                    "email_event_type": "updated",
+                    "is_canceled": False,
+                }
+            }
+        ]
+    }
+
+    with (
+        patch(
+            "app.api.endpoints.webhooks.list_bots_for_meeting",
+            new_callable=AsyncMock,
+            return_value=[{"id": "bot-old-1"}],
+        ),
+        patch(
+            "app.api.endpoints.webhooks.update_bot",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("patch failed"),
+        ),
+        patch("app.api.endpoints.webhooks._enqueue_manual_recall_action", new_callable=AsyncMock),
+        patch("app.api.endpoints.webhooks.logger.warning") as mock_warning,
+    ):
+        await _handle_recall_bots(gmail_result)
+
+    mock_warning.assert_called_once()
+    warning_args = mock_warning.call_args[0]
+    assert "manual action required" in warning_args[0]
+    assert "update" in warning_args
+
+
+@pytest.mark.anyio
+async def test_update_recall_bot_endpoint_returns_updated_bot() -> None:
+    body = RecallBotUpdateBody(
+        meeting_url="https://meet.google.com/afi-dqnj-bib?hs=224",
+        bot_name="test meeting",
+        join_at="2026-03-10T14:15:00+11:00",
+    )
+
+    with patch("app.api.endpoints.webhooks.update_bot", new_callable=AsyncMock) as mock_update:
+        mock_update.return_value = {"id": "bot-123"}
+        result = await update_recall_bot("bot-123", body)
+
+    assert result == {"id": "bot-123"}
+    mock_update.assert_awaited_once_with(
+        "bot-123",
+        meeting_url="https://meet.google.com/afi-dqnj-bib?hs=224",
+        bot_name="test meeting",
+        join_at="2026-03-10T14:15:00+11:00",
+    )
+
+
+@pytest.mark.anyio
+async def test_update_recall_bot_endpoint_rejects_empty_payload() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        await update_recall_bot("bot-123", RecallBotUpdateBody())
+
+    assert exc_info.value.status_code == 400

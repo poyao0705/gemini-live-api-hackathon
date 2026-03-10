@@ -20,7 +20,15 @@ def _auth_headers() -> dict[str, str]:
     }
 
 
-async def create_bot(meeting_url: str, bot_name: str | None = None) -> dict[str, Any]:
+def _prune_none_values(payload: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in payload.items() if value is not None}
+
+
+async def create_bot(
+    meeting_url: str,
+    bot_name: str | None = None,
+    join_at: str | None = None,
+) -> dict[str, Any]:
     """Create a Recall AI bot for the given meeting URL.
 
     Returns the bot object returned by the Recall AI API.
@@ -29,23 +37,75 @@ async def create_bot(meeting_url: str, bot_name: str | None = None) -> dict[str,
         meeting_url: The URL of the meeting to join.
         bot_name: Optional display name for the bot; falls back to the
             ``recall_ai_bot_name`` setting.
+        join_at: Optional ISO 8601 time for creating a scheduled bot.
 
     Raises:
         httpx.HTTPStatusError: If the Recall AI API returns a non-2xx status.
     """
     name = bot_name or settings.recall_ai_bot_name
     url = f"{settings.recall_ai_base_url}/bot/"
+    payload = _prune_none_values(
+        {
+            "meeting_url": meeting_url,
+            "bot_name": name,
+            "join_at": join_at,
+        }
+    )
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
             url,
             headers=_auth_headers(),
-            json={"meeting_url": meeting_url, "bot_name": name},
+            json=payload,
         )
         response.raise_for_status()
         bot: dict[str, Any] = response.json()
 
     logger.info("Created Recall AI bot %s for meeting %s", bot.get("id"), meeting_url)
+    return bot
+
+
+async def update_bot(
+    bot_id: str,
+    *,
+    meeting_url: str | None = None,
+    bot_name: str | None = None,
+    join_at: str | None = None,
+) -> dict[str, Any]:
+    """Update a scheduled Recall AI bot.
+
+    Args:
+        bot_id: The Recall AI bot identifier.
+        meeting_url: Optional updated meeting URL.
+        bot_name: Optional updated display name.
+        join_at: Optional ISO 8601 time for when the bot should join.
+
+    Raises:
+        ValueError: If no update fields are provided.
+        httpx.HTTPStatusError: If the Recall AI API returns a non-2xx status.
+    """
+    payload = _prune_none_values(
+        {
+            "meeting_url": meeting_url,
+            "bot_name": bot_name,
+            "join_at": join_at,
+        }
+    )
+    if not payload:
+        raise ValueError("At least one bot field must be provided for update")
+
+    url = f"{settings.recall_ai_base_url}/bot/{bot_id}/"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.patch(
+            url,
+            headers=_auth_headers(),
+            json=payload,
+        )
+        response.raise_for_status()
+        bot: dict[str, Any] = response.json()
+
+    logger.info("Updated Recall AI bot %s", bot_id)
     return bot
 
 
@@ -65,6 +125,24 @@ async def stop_bot(bot_id: str) -> None:
         response.raise_for_status()
 
     logger.info("Stopped Recall AI bot %s", bot_id)
+
+
+async def delete_bot(bot_id: str) -> None:
+    """Delete a scheduled Recall AI bot that has not yet joined a call.
+
+    Args:
+        bot_id: The Recall AI bot identifier.
+
+    Raises:
+        httpx.HTTPStatusError: If the Recall AI API returns a non-2xx status.
+    """
+    url = f"{settings.recall_ai_base_url}/bot/{bot_id}/"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(url, headers=_auth_headers())
+        response.raise_for_status()
+
+    logger.info("Deleted Recall AI scheduled bot %s", bot_id)
 
 
 async def list_bots_for_meeting(meeting_url: str) -> list[dict[str, Any]]:
