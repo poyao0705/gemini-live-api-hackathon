@@ -78,7 +78,7 @@ async def test_meeting_invite_store_persists_invite_with_status() -> None:
 
     assert record is not None
     assert record["gmail_message_id"] == "msg-1"
-    assert record["meeting_status"] == "confirmed"
+    assert record["meeting_status"] == "scheduled"
     assert record["email_event_type"] == "created"
     assert record["calendar_event_id"] == "event-123"
     assert record["join_at"] == "2026-03-11T09:00:00+11:00"
@@ -163,6 +163,84 @@ async def test_list_meeting_invites_endpoint_filters_by_status() -> None:
     assert result["count"] == 1
     assert result["items"][0]["gmail_message_id"] == "msg-canceled"
     assert result["items"][0]["meeting_status"] == "canceled"
+
+
+@pytest.mark.anyio
+@pytest.mark.usefixtures("setup_meeting_invite_db")
+async def test_cancellation_updates_existing_invite_row() -> None:
+    """A cancellation email for the same calendar event must mutate the existing row."""
+    invite_message = GmailMessageSummary(
+        id="msg-orig",
+        thread_id="thread-standup-shared",
+        history_id="300",
+        label_ids=["INBOX"],
+        snippet="original invite",
+        subject="Invitation: Team Standup @ Thu Mar 12, 2026 10am",
+        sender="organizer@example.com",
+        recipient="jobmate.agent@gmail.com",
+        date="Tue, 10 Mar 2026 08:00:00 +0000",
+        body_text="join url body",
+        meeting_details={
+            "title": "Team Standup",
+            "calendar_event_id": "event-same-abc",
+            "email_event_type": "created",
+            "event_status": "confirmed",
+            "is_canceled": False,
+            "join_url": "https://meet.google.com/xyz-1234",
+            "join_at": "2026-03-12T10:00:00+11:00",
+            "timezone": "Australia/Sydney",
+            "date_time_text": "Thursday Mar 12, 2026 ⋅ 10am",
+            "location": None,
+            "meeting_id": None,
+            "passcode": None,
+            "organizer": "organizer@example.com",
+            "guests": [],
+            "agenda": [],
+            "agenda_confidence": "none",
+        },
+    )
+    cancel_message = GmailMessageSummary(
+        id="msg-cancel",  # different message ID
+        thread_id="thread-standup-shared",  # same thread — Google sends all calendar emails for one event in one thread
+        history_id="301",
+        label_ids=["INBOX"],
+        snippet="event canceled",
+        subject="Canceled event: Team Standup @ Thu Mar 12, 2026 10am",
+        sender="organizer@example.com",
+        recipient="jobmate.agent@gmail.com",
+        date="Tue, 10 Mar 2026 09:00:00 +0000",
+        body_text="event canceled body",
+        meeting_details={
+            "title": "Team Standup",
+            "calendar_event_id": "event-same-abc",  # same calendar event
+            "email_event_type": "canceled",
+            "event_status": "canceled",
+            "is_canceled": True,
+            "join_url": None,
+            "join_at": None,
+            "timezone": "Australia/Sydney",
+            "date_time_text": "Thursday Mar 12, 2026 ⋅ 10am",
+            "location": None,
+            "meeting_id": None,
+            "passcode": None,
+            "organizer": "organizer@example.com",
+            "guests": [],
+            "agenda": [],
+            "agenda_confidence": "none",
+        },
+    )
+
+    await meeting_invite_store.upsert_from_message("jobmate.agent@gmail.com", invite_message)
+    await meeting_invite_store.upsert_from_message("jobmate.agent@gmail.com", cancel_message)
+
+    items = await meeting_invite_store.list_invites(email_address="jobmate.agent@gmail.com")
+
+    # Must be ONE row, not two
+    assert len(items) == 1
+    assert items[0]["calendar_event_id"] == "event-same-abc"
+    assert items[0]["meeting_status"] == "canceled"
+    assert items[0]["is_canceled"] is True
+    assert items[0]["email_event_type"] == "canceled"
 
 
 @pytest.mark.anyio

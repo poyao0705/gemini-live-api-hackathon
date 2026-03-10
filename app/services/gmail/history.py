@@ -194,7 +194,19 @@ def _extract_calendar_event_id(body_text: str) -> str | None:
     for raw_url in re.findall(r"https?://\S+", body_text):
         candidate = raw_url.rstrip(").,;]")
         parsed = urlparse(candidate)
-        if parsed.netloc != "calendar.google.com":
+
+        # Google uses two domains for calendar event URLs:
+        #   • calendar.google.com/?eid=...
+        #   • www.google.com/calendar/event?eid=...
+        # Cancellation emails tend to use the www.google.com form.
+        is_calendar_url = (
+            parsed.netloc == "calendar.google.com"
+            or (
+                parsed.netloc in ("www.google.com", "google.com")
+                and parsed.path.startswith("/calendar")
+            )
+        )
+        if not is_calendar_url:
             continue
 
         event_id = parse_qs(parsed.query).get("eid", [None])[0]

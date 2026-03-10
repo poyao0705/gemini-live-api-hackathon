@@ -21,6 +21,13 @@ def _parse_join_at(value: str | None):
     return datetime.fromisoformat(value)
 
 
+def _derive_meeting_status(details: dict[str, Any]) -> str:
+    """Map email event details to a user-facing meeting status."""
+    if details.get("is_canceled") or details.get("email_event_type") == "canceled":
+        return "canceled"
+    return "scheduled"
+
+
 class MeetingInviteStore:
     """Store meeting invite emails extracted from Gmail."""
 
@@ -33,13 +40,44 @@ class MeetingInviteStore:
         if not details:
             return None
 
+        calendar_event_id = details.get("calendar_event_id")
+
         async with async_session_factory() as session:
-            record = await session.get(MeetingInvite, message.id)
+            # Look up the existing row using the most stable identifier available,
+            # so that update/cancel emails mutate the same row instead of
+            # creating duplicates.
+            #
+            # Priority:
+            # 1. calendar_event_id  – present on invite/update emails (most reliable)
+            # 2. gmail_thread_id    – Google sends all emails for one calendar event
+            #                         in the same thread, works for cancellations too
+            # 3. gmail_message_id   – fall back to exact message match (new row)
+            record: MeetingInvite | None = None
+            if calendar_event_id:
+                result = await session.exec(
+                    select(MeetingInvite).where(
+                        MeetingInvite.calendar_event_id == calendar_event_id
+                    )
+                )
+                record = result.first()
+            # Fallback: match on join_url — cancellation emails keep the same
+            # Meet link even when the calendar URL (with eid=) is absent.
+            join_url = details.get("join_url")
+            if record is None and join_url:
+                result = await session.exec(
+                    select(MeetingInvite).where(
+                        MeetingInvite.email_address == email_address,
+                        MeetingInvite.join_url == join_url,
+                    )
+                )
+                record = result.first()
+            if record is None:
+                record = await session.get(MeetingInvite, message.id)
             if record is None:
                 record = MeetingInvite(
                     gmail_message_id=message.id,
                     email_address=email_address,
-                    meeting_status=details.get("event_status", "confirmed"),
+                    meeting_status=_derive_meeting_status(details),
                     email_event_type=details.get("email_event_type", "created"),
                 )
 
@@ -56,7 +94,7 @@ class MeetingInviteStore:
             record.calendar_event_id = details.get("calendar_event_id")
             record.join_url = details.get("join_url")
             record.join_at = _parse_join_at(details.get("join_at"))
-            record.meeting_status = details.get("event_status", "confirmed")
+            record.meeting_status = _derive_meeting_status(details)
             record.email_event_type = details.get("email_event_type", "created")
             record.is_canceled = bool(details.get("is_canceled", False))
             record.meeting_details_json = details
