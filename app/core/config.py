@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     gmail_watch_topic: str = ""
     gmail_watch_label_ids_csv: str = "INBOX"
     gmail_allowed_email_addresses_csv: str = ""
+    recall_ai_token: str = ""
+    # Region-specific base URL; change to match your Recall AI account region
+    # (e.g. us-east-1, eu-west-1).  The ap-northeast-1 default matches the
+    # region used during initial development.
+    recall_ai_base_url: str = "https://ap-northeast-1.recall.ai/api/v1"
+    recall_ai_bot_name: str = "Gemini Agent"
 
     model_config = SettingsConfigDict(
         env_file=(APP_DIR / ".env", ROOT_DIR / ".env"),
