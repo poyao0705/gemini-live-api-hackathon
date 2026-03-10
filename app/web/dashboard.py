@@ -25,6 +25,8 @@ def _meeting_badge_class(status: str) -> str:
     color_cls = {
         "scheduled": "bg-[rgba(198,90,46,0.12)] text-[#8b3d1d] border-[rgba(198,90,46,0.24)]",
         "canceled":  "bg-[rgba(95,43,35,0.12)]  text-[#6b2a22] border-[rgba(95,43,35,0.2)]",
+        "ongoing":   "bg-[rgba(16,163,127,0.12)] text-[#0d6b53] border-[rgba(16,163,127,0.24)]",
+        "ended":     "bg-[rgba(91,81,72,0.10)] text-[#5b5148] border-[rgba(91,81,72,0.18)]",
     }.get(status, "")
     return (
         f"badge badge-outline font-label text-[0.76rem] font-bold "
@@ -189,6 +191,17 @@ def _month_grid(
 def _meeting_card(item: dict[str, Any], *, compact: bool = False, allow_join_link: bool = True) -> Article:
     details = item.get("meeting_details_json") or {}
     status = item.get("meeting_status", "scheduled")
+
+    # Derive display label from temporal flags already set by build_dashboard_payload
+    if status == "canceled":
+        display_status = "canceled"
+    elif item.get("is_ongoing"):
+        display_status = "ongoing"
+    elif item.get("is_past"):
+        display_status = "ended"
+    else:
+        display_status = status
+
     padding_cls = "p-4" if compact else "p-[18px]"
     card_cls = f"{padding_cls} border border-[rgba(31,26,22,0.08)] rounded-[20px] bg-surface-strong"
     join_link = None
@@ -211,7 +224,7 @@ def _meeting_card(item: dict[str, Any], *, compact: bool = False, allow_join_lin
 
     return Article(
         Div(
-            Span(status.title(), cls=_meeting_badge_class(status)),
+            Span(display_status.title(), cls=_meeting_badge_class(display_status)),
             Small(_format_meeting_datetime(item.get("join_at")), cls="font-label tracking-wide"),
             cls="flex items-center justify-between gap-3",
         ),

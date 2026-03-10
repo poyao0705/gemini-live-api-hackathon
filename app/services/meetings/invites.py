@@ -109,7 +109,8 @@ def build_dashboard_payload(
         if join_at is None:
             continue
 
-        end_at = _coerce_utc(_infer_meeting_end(item, join_at)) or (join_at + timedelta(hours=1))
+        stored_end = _coerce_utc(_parse_datetime(item.get("end_at")))
+        end_at = stored_end or _coerce_utc(_infer_meeting_end(item, join_at)) or (join_at + timedelta(hours=1))
         is_ongoing = join_at <= current_time < end_at
 
         normalized_item = {
@@ -219,6 +220,12 @@ class MeetingInviteStore:
             record.calendar_event_id = details.get("calendar_event_id")
             record.join_url = details.get("join_url")
             record.join_at = _parse_join_at(details.get("join_at"))
+            if record.join_at is not None:
+                record.end_at = _infer_meeting_end(
+                    {"meeting_details_json": details}, record.join_at,
+                )
+            else:
+                record.end_at = None
             record.meeting_status = _derive_meeting_status(details)
             record.email_event_type = details.get("email_event_type", "created")
             record.is_canceled = bool(details.get("is_canceled", False))
@@ -265,6 +272,16 @@ class MeetingInviteStore:
                 payload["join_at"] = str(record.meeting_details_json["join_at"])
             else:
                 payload["join_at"] = record.join_at.isoformat()
+        if record.end_at is not None:
+            end = record.end_at
+            # SQLite may strip tzinfo; recover from join_at's timezone
+            if end.tzinfo is None and record.join_at is not None and record.join_at.tzinfo is not None:
+                end = end.replace(tzinfo=record.join_at.tzinfo)
+            elif end.tzinfo is None and record.meeting_details_json.get("join_at"):
+                source_tz = _parse_join_at(record.meeting_details_json["join_at"])
+                if source_tz and source_tz.tzinfo:
+                    end = end.replace(tzinfo=source_tz.tzinfo)
+            payload["end_at"] = end.isoformat()
         return payload
 
 

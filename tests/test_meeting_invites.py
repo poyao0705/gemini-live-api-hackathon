@@ -86,6 +86,7 @@ async def test_meeting_invite_store_persists_invite_with_status() -> None:
     assert record["email_event_type"] == "created"
     assert record["calendar_event_id"] == "event-123"
     assert record["join_at"] == "2026-03-11T09:00:00+11:00"
+    assert record["end_at"] == "2026-03-11T09:30:00+11:00"
 
     items = await meeting_invite_store.list_invites(email_address="jobmate.agent@gmail.com")
     assert len(items) == 1
@@ -310,9 +311,33 @@ def test_build_dashboard_payload_splits_past_and_upcoming() -> None:
         "past-1",
     ]
     assert payload["past_meetings"][0]["is_ongoing"] is True
+    assert payload["past_meetings"][0]["is_past"] is False
     assert payload["past_meetings"][1]["is_ongoing"] is False
+    assert payload["past_meetings"][1]["is_past"] is True
     assert all(item["gmail_message_id"] != "unknown-time" for item in payload["past_meetings"])
     assert payload["upcoming_by_date"]["2026-03-11"][0]["gmail_message_id"] == "future-1"
+
+
+def test_build_dashboard_payload_prefers_stored_end_at() -> None:
+    """When end_at is already stored it should be used instead of inferring from date_time_text."""
+    payload = build_dashboard_payload(
+        [
+            {
+                "gmail_message_id": "stored-end",
+                "title": "Custom End",
+                "join_at": "2026-03-09T09:00:00+00:00",
+                "end_at": "2026-03-09T10:30:00+00:00",
+                "updated_at": "2026-03-09T09:00:00+00:00",
+                "created_at": "2026-03-08T09:00:00+00:00",
+                "meeting_status": "scheduled",
+                "meeting_details_json": {"date_time_text": "Mon Mar 09, 2026 ⋅ 9am – 9:30am"},
+            },
+        ],
+        now=invites_module.datetime.fromisoformat("2026-03-10T12:00:00+00:00"),
+    )
+
+    # Stored end_at (10:30) takes precedence over inferred 9:30
+    assert payload["past_meetings"][0]["end_at"] == "2026-03-09T10:30:00+00:00"
 
 
 def test_dashboard_mount_renders_meeting_sections(monkeypatch: pytest.MonkeyPatch) -> None:

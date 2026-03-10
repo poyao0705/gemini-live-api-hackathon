@@ -91,6 +91,7 @@ class MeetingInvite(SQLModel, table=True):
     calendar_event_id: str | None = Field(default=None, index=True, max_length=512)
     join_url: str | None = Field(default=None, max_length=2048)
     join_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True), nullable=True)
+    end_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True), nullable=True)
     meeting_status: str = Field(max_length=32)
     email_event_type: str = Field(max_length=32)
     is_canceled: bool = Field(default=False, nullable=False)
