@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import JSON, Column, DateTime, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -56,6 +57,44 @@ class RecallFailureQueue(SQLModel, table=True):
     error_type: str = Field(max_length=128)
     error_message: str = Field(max_length=2048)
     metadata_json: dict[str, str | int | float | bool | None] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON, nullable=False),
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_type=DateTime(timezone=True),
+        nullable=False,
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_type=DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+class MeetingInvite(SQLModel, table=True):
+    """Persist meeting invite emails and their extracted meeting status."""
+
+    __tablename__ = "meeting_invite"
+
+    gmail_message_id: str = Field(primary_key=True, max_length=64)
+    email_address: str = Field(index=True, max_length=320)
+    gmail_thread_id: str | None = Field(default=None, index=True, max_length=64)
+    gmail_history_id: str | None = Field(default=None, index=True, max_length=64)
+    sender: str | None = Field(default=None, max_length=512)
+    recipient: str | None = Field(default=None, max_length=512)
+    subject: str | None = Field(default=None, max_length=1024)
+    message_date: str | None = Field(default=None, max_length=256)
+    snippet: str = Field(default="", sa_column=Column(Text, nullable=False))
+    body_text: str = Field(default="", sa_column=Column(Text, nullable=False))
+    title: str | None = Field(default=None, max_length=512)
+    calendar_event_id: str | None = Field(default=None, index=True, max_length=512)
+    join_url: str | None = Field(default=None, max_length=2048)
+    join_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True), nullable=True)
+    meeting_status: str = Field(max_length=32)
+    email_event_type: str = Field(max_length=32)
+    is_canceled: bool = Field(default=False, nullable=False)
+    meeting_details_json: dict[str, Any] = Field(
         default_factory=dict,
         sa_column=Column(JSON, nullable=False),
     )

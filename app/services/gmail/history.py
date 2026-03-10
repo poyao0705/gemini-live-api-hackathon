@@ -22,6 +22,7 @@ from app.core.config import settings
 from app.db.session import async_session_factory
 from app.integrations.google.client import get_gmail_service
 from app.db.models.meeting import GmailHistoryState, utc_now
+from app.services.meetings.invites import meeting_invite_store
 
 
 logger = logging.getLogger(__name__)
@@ -106,6 +107,7 @@ SUBJECT_EVENT_TYPES = {
 @dataclass(slots=True)
 class MeetingDetails:
     title: str | None
+    calendar_event_id: str | None
     email_event_type: str
     event_status: str
     is_canceled: bool
@@ -184,6 +186,20 @@ def _extract_calendar_timezone_id(body_text: str) -> str | None:
         timezone_id = parse_qs(parsed.query).get("ctz", [None])[0]
         if timezone_id:
             return unquote(timezone_id)
+
+    return None
+
+
+def _extract_calendar_event_id(body_text: str) -> str | None:
+    for raw_url in re.findall(r"https?://\S+", body_text):
+        candidate = raw_url.rstrip(").,;]")
+        parsed = urlparse(candidate)
+        if parsed.netloc != "calendar.google.com":
+            continue
+
+        event_id = parse_qs(parsed.query).get("eid", [None])[0]
+        if event_id:
+            return event_id
 
     return None
 
@@ -521,6 +537,7 @@ def extract_meeting_details(subject: str | None, body_text: str) -> dict[str, An
 
     details = MeetingDetails(
         title=_extract_meeting_title(subject, lines),
+        calendar_event_id=_extract_calendar_event_id(body_text),
         email_event_type=email_event_type,
         event_status="canceled" if is_canceled else "confirmed",
         is_canceled=is_canceled,
@@ -774,6 +791,7 @@ async def process_gmail_push_notification(
     messages = []
     for message_id in get_new_message_ids(history_records):
         summary = await get_message_summary(service, message_id)
+        await meeting_invite_store.upsert_from_message(email_address, summary)
         messages.append(summary.to_dict())
 
     await gmail_state_store.upsert_user_state(

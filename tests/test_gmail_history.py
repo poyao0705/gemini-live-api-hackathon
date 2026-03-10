@@ -39,6 +39,7 @@ View all guest info
     assert details["guests"] == ["jobmate.agent@gmail.com"]
     assert details["agenda"] == []
     assert details["agenda_confidence"] == "none"
+    assert details["calendar_event_id"] is None
     assert details["email_event_type"] == "created"
     assert details["event_status"] == "confirmed"
     assert details["is_canceled"] is False
@@ -166,6 +167,7 @@ https://calendar.google.com/calendar/event?action=VIEW&eid=NXU4aGIwdHQwNjVrdDVrM
     assert details["is_canceled"] is False
     assert details["join_url"] == "https://meet.google.com/afi-dqnj-bib?hs=224"
     assert details["agenda"] == ["test meeting"]
+    assert details["calendar_event_id"] == "NXU4aGIwdHQwNjVrdDVrM3J2OWdqNjQxa24gam9ibWF0ZS5hZ2VudEBt"
     assert details["join_at"] == "2026-03-10T14:15:00+11:00"
 
 

@@ -9,6 +9,7 @@ This repo now includes a Gmail Push Notification webhook at `POST /gmail/webhook
 
 - decodes the Pub/Sub push payload
 - persists the latest processed `historyId` in PostgreSQL
+- persists each processed meeting invite email in `meeting_invite` with extracted meeting status
 - calls `users.history.list(startHistoryId=...)` with pagination
 - fetches each new message via `users.messages.get`
 - stores failed Recall bot create/update/stop actions in a manual-review queue
@@ -65,6 +66,8 @@ If you pull the new Recall fallback queue changes, run:
 ```bash
 uv run alembic upgrade head
 ```
+
+That migration set now also includes the `meeting_invite` table used to store meeting invite emails and statuses.
 
 Manual review endpoints for failed Recall bot automation:
 
