@@ -944,8 +944,8 @@ async function openCameraPreview() {
     // Set the stream to the video element
     cameraPreview.srcObject = cameraStream;
 
-    // Show the modal
-    cameraModal.classList.add("show");
+    // Show the modal (DaisyUI dialog API)
+    cameraModal.showModal();
   } catch (error) {
     console.error("Error accessing camera:", error);
     addSystemMessage(`Failed to access camera: ${error.message}`);
@@ -966,18 +966,18 @@ async function openCameraPreview() {
 
 // Close camera modal and stop preview
 function closeCameraPreview() {
-  // Stop the camera stream
+  // Hide the modal — the 'close' event handler will stop the camera stream
+  cameraModal.close();
+}
+
+// Stop camera stream whenever the dialog is closed (by JS or backdrop click)
+cameraModal.addEventListener("close", () => {
   if (cameraStream) {
     cameraStream.getTracks().forEach((track) => track.stop());
     cameraStream = null;
   }
-
-  // Clear the video source
   cameraPreview.srcObject = null;
-
-  // Hide the modal
-  cameraModal.classList.remove("show");
-}
+});
 
 // Capture image from the live preview
 function captureImageFromPreview() {
@@ -1070,13 +1070,6 @@ cameraButton.addEventListener("click", openCameraPreview);
 closeCameraModal.addEventListener("click", closeCameraPreview);
 cancelCamera.addEventListener("click", closeCameraPreview);
 captureImageBtn.addEventListener("click", captureImageFromPreview);
-
-// Close modal when clicking outside of it
-cameraModal.addEventListener("click", (event) => {
-  if (event.target === cameraModal) {
-    closeCameraPreview();
-  }
-});
 
 /**
  * Audio handling
