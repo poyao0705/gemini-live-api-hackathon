@@ -80,6 +80,9 @@ body {
 .bubble.image-bubble { padding: 0.25rem; max-width: 80%; border: none !important; background: transparent !important; box-shadow: none !important; }
 .bubble-image { max-width: 100%; max-height: 300px; width: auto; height: auto; border-radius: 1rem; display: block; object-fit: contain; }
 
+/* System messages */
+.system-message { background-color: var(--surface-strong) !important; color: var(--muted) !important; border: 1px solid var(--border) !important; box-shadow: none !important; padding: 0.5rem 1rem !important; border-radius: 9999px !important; font-size: 0.85rem; font-weight: normal; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+
 /* Status indicator dot — toggled by app.js */
 .status-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #10a37f; display: inline-block; }
 .status-indicator.disconnected { background-color: #ef4444; }
@@ -109,6 +112,12 @@ body {
 .console-entry-json { background-color: rgba(0,0,0,0.03); padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem; overflow-x: auto; max-height: 400px; overflow-y: auto; transition: all 0.3s ease; border: 1px solid rgba(0,0,0,0.05); }
 .console-entry-json.collapsed { display: none; }
 .console-entry-json pre { margin: 0; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.7rem; }
+
+/* Event cards - styling events created by recall.js */
+.event.card { background-color: var(--surface-strong) !important; border-color: var(--border) !important; box-shadow: none !important; color: var(--ink) !important; padding: 1rem; border-radius: 1rem; margin-bottom: 0.75rem; }
+.event.card p { color: var(--ink) !important; margin: 0; }
+.event.card p strong { color: var(--ink) !important; }
+.event.card p.meta { color: var(--muted) !important; margin-top: 0.25rem !important; }
 """
 
 router = APIRouter()
