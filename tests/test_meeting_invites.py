@@ -451,7 +451,7 @@ def test_dashboard_mount_renders_meeting_sections(monkeypatch: pytest.MonkeyPatc
     assert "https://meet.google.com/future-link-2" not in response.text
     assert 'target="_blank"' in response.text
     assert 'rel="noopener noreferrer"' in response.text
-    assert response.text.count("calendar-day-dot") == 2
+    assert response.text.count('aria-label="Upcoming meeting"') == 2
 
     selected_response = client.get("/dashboard/upcoming-panel?selected_date=2026-03-12")
 
