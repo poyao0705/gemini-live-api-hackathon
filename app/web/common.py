@@ -30,6 +30,7 @@ _SHARED_THEME_CSS = """
   --color-border:         rgba(31, 26, 22, 0.12);
 
   /* Avenir Next / Segoe UI — used for labels, badges, eyebrows, weekday headings */
+    --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
   --font-label: "Avenir Next", "Segoe UI", system-ui, sans-serif;
 }
 
@@ -40,11 +41,29 @@ _SHARED_THEME_CSS = """
 /* Shared body baseline — background is the same warm gradient on every page */
 body {
   color: var(--color-ink);
+    font-family: var(--font-display);
   background:
     radial-gradient(circle at top left,  rgba(255, 255, 255, 0.78), transparent 36%),
     radial-gradient(circle at top right, rgba(198, 90, 46, 0.12),   transparent 28%),
     linear-gradient(180deg, #efe2cf 0%, #f4efe4 48%, #efe7da 100%);
   background-attachment: fixed;
+}
+
+/* Keep controls and dense UI chrome in the same label font used on dashboard. */
+.navbar,
+.btn,
+.input,
+.select,
+.checkbox,
+.label,
+.label-text,
+.badge,
+.stat-title,
+.stat-value,
+.card-title,
+h2,
+h3 {
+    font-family: var(--font-label);
 }
 
 a { color: inherit; }
