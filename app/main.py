@@ -15,15 +15,13 @@ from google.genai import types
 
 from app.api.api_v1 import api_router
 from app.api.endpoints.meetings import meetings_store
+from app.core.logging import configure_logging
 from app.services.google_search_agent.agent import agent
 from app.web.dashboard import mount_dashboard
 from app.web.router import router as web_router
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# Configure logging once for the whole application process.
+configure_logging()
 logger = logging.getLogger(__name__)
 
 # Suppress Pydantic serialization warnings
