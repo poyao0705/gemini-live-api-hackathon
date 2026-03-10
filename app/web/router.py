@@ -199,7 +199,7 @@ def _main_page() -> Html:
             Main(
                 # Chat container
                 Div(
-                    Div(id="messages", cls="flex-1 p-4 overflow-y-auto min-h-[50vh] flex flex-col gap-2"),
+                    Div(id="messages", cls="flex-1 p-4 overflow-y-auto min-h-0 flex flex-col gap-2"),
                     Div(
                         Form(
                             Input(
@@ -218,7 +218,7 @@ def _main_page() -> Html:
                         ),
                         cls="p-4 bg-transparent border-t border-[var(--border)]",
                     ),
-                    cls="flex-[2] flex flex-col bg-transparent rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden",
+                    cls="flex-[2] flex flex-col bg-transparent rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden min-h-0",
                 ),
                 # Console panel
                 Div(
@@ -238,13 +238,16 @@ def _main_page() -> Html:
                         ),
                         cls="flex justify-between items-center p-3 bg-[var(--surface)] border-b border-[var(--border)]",
                     ),
-                    Div(id="consoleContent", cls="flex-1 overflow-y-auto p-3 text-xs leading-relaxed bg-transparent"),
+                    Div(
+                        Div(id="consoleContent", cls="flex-1 overflow-y-auto p-3 text-xs leading-relaxed bg-transparent"),
+                        cls="flex-1 overflow-y-auto min-h-0",
+                    ),
                     cls=(
                         "flex-1 flex flex-col bg-transparent text-[var(--ink)] rounded-2xl shadow-sm border border-[var(--border)] "
-                        "overflow-hidden max-h-[70vh] lg:max-h-full font-mono"
+                        "overflow-hidden font-mono min-h-0"
                     ),
                 ),
-                cls="flex-1 flex flex-col lg:flex-row gap-4 p-4 max-w-[1800px] mx-auto w-full overflow-hidden bg-transparent",
+                cls="flex-1 flex flex-col lg:flex-row gap-4 p-4 max-w-[1800px] mx-auto w-full overflow-hidden bg-transparent min-h-0 h-0",
             ),
             # ── Camera modal (DaisyUI dialog) ──────────────────────────────────
             Dialog(
@@ -269,7 +272,7 @@ def _main_page() -> Html:
                 id="cameraModal",
                 cls="modal",
             ),
-            cls="min-h-screen flex flex-col",
+            cls="h-screen flex flex-col overflow-hidden",
         ),
     )
 
