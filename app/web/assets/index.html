@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ADK Bidi-streaming Demo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5" type="text/css">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+@theme {
+  /* Warm neutral palette */
+  --color-bg:             #f4efe4;
+  --color-surface:        rgba(255, 250, 242, 0.84);
+  --color-surface-strong: #fffaf1;
+  --color-ink:            #1f1a16;
+  --color-muted:          #5b5148;
+  --color-accent:         #c65a2e;
+  --color-accent-soft:    #f2c8a9;
+  --color-border:         rgba(31, 26, 22, 0.12);
+
+  /* Avenir Next / Segoe UI — used for labels, badges, eyebrows, weekday headings */
+    --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  --font-label: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+/* Shared body baseline — background is the same warm gradient on every page */
+body {
+  color: var(--color-ink);
+    font-family: var(--font-display);
+  background:
+    radial-gradient(circle at top left,  rgba(255, 255, 255, 0.78), transparent 36%),
+    radial-gradient(circle at top right, rgba(198, 90, 46, 0.12),   transparent 28%),
+    linear-gradient(180deg, #efe2cf 0%, #f4efe4 48%, #efe7da 100%);
+  background-attachment: fixed;
+}
+
+/* Keep controls and dense UI chrome in the same label font used on dashboard. */
+.navbar,
+.btn,
+.input,
+.select,
+.checkbox,
+.label,
+.label-text,
+.badge,
+.stat-title,
+.stat-value,
+.card-title,
+h2,
+h3 {
+    font-family: var(--font-label);
+}
+
+a { color: inherit; }
+</style>
+    <style>
+/* Chat message bubbles — created dynamically by app.js */
+.message { display: flex; margin-bottom: 1rem; animation: slideIn 0.3s ease-out; }
+.message.user  { justify-content: flex-end; }
+.message.agent { justify-content: flex-start; }
+.bubble { max-width: 70%; padding: 0.875rem 1.25rem; border-radius: 1.5rem; word-wrap: break-word; position: relative; font-size: 0.95rem; box-shadow: none; }
+.message.user  .bubble { background-color: rgba(31, 26, 22, 0.05); color: var(--color-ink); border: 1px solid var(--color-border); border-bottom-right-radius: 0.5rem; }
+.message.agent .bubble { background-color: transparent; color: var(--color-ink); border: none; box-shadow: none; padding-left: 0; }
+.bubble-text { margin: 0; line-height: 1.6; }
+.message.interrupted .bubble { opacity: 0.7; background-color: var(--color-surface); border-left: 3px solid var(--color-accent); }
+.message.interrupted .bubble::after { content: "interrupted"; display: block; font-size: 0.75rem; color: var(--color-muted); font-style: italic; margin-top: 0.25rem; }
+.message.transcription.user .bubble { opacity: 0.9; border: 1px solid var(--color-border); }
+.message.transcription.user .bubble::before { content: "🎤"; opacity: 0.8; margin-right: 0.25rem; }
+.typing-indicator { display: inline-block; margin-left: 0.25rem; color: var(--color-muted); }
+.typing-indicator::after { content: "..."; animation: ellipsis 1.5s infinite; }
+@keyframes ellipsis { 0%,20% { content: "."; } 40% { content: ".."; } 60%,100% { content: "..."; } }
+@keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.bubble.image-bubble { padding: 0.25rem; max-width: 80%; border: none !important; background: transparent !important; box-shadow: none !important; }
+.bubble-image { max-width: 100%; max-height: 300px; width: auto; height: auto; border-radius: 1rem; display: block; object-fit: contain; }
+
+/* System messages */
+.system-message { background-color: var(--color-surface-strong) !important; color: var(--color-muted) !important; border: 1px solid var(--color-border) !important; box-shadow: none !important; padding: 0.5rem 1rem !important; border-radius: 9999px !important; font-size: 0.85rem; font-weight: normal; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+
+/* Status indicator dot — toggled by app.js */
+.status-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #10a37f; display: inline-block; }
+.status-indicator.disconnected { background-color: #ef4444; }
+
+/* Console entries — created dynamically by app.js */
+.console-entry { margin-bottom: 0.75rem; padding: 0.75rem; border-left: 3px solid transparent; background-color: var(--color-surface); border-radius: 0.5rem; border: 1px solid var(--color-border); transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.console-entry.outgoing { border-left-color: var(--color-accent); }
+.console-entry.incoming { border-left-color: #10a37f; }
+.console-entry.error    { border-left-color: #ef4444; background-color: rgba(239,68,68,0.05); }
+.console-entry.expandable { cursor: pointer; }
+.console-entry.expandable:hover { background-color: var(--color-surface-strong); border-color: rgba(31, 26, 22, 0.2); }
+.console-entry.expanded { background-color: var(--color-surface-strong); }
+.console-entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.375rem; }
+.console-entry-left { display: flex; align-items: center; gap: 0.5rem; }
+.console-entry-emoji { font-size: 0.9rem; line-height: 1; display: inline-block; user-select: none; min-width: 16px; text-align: center; }
+.console-expand-icon { font-size: 0.6rem; color: var(--color-muted); width: 12px; display: inline-block; transition: transform 0.2s ease; user-select: none; }
+.console-entry-type { font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.console-entry.outgoing .console-entry-type { color: var(--color-accent); }
+.console-entry.incoming .console-entry-type { color: #10a37f; }
+.console-entry.error    .console-entry-type { color: #ef4444; }
+.console-entry-author { font-size: 0.65rem; font-weight: 500; padding: 0.125rem 0.375rem; border-radius: 0.25rem; text-transform: lowercase; letter-spacing: 0.3px; border: 1px solid; background-color: rgba(0,0,0,0.05); color: var(--color-ink); border-color: rgba(0,0,0,0.1); }
+.console-entry-author[data-author="user"]   { background-color: rgba(198, 90, 46, 0.1); color: var(--color-accent); border-color: rgba(198, 90, 46, 0.2); }
+.console-entry-author[data-author="system"] { background-color: rgba(91, 81, 72, 0.1);  color: var(--color-muted);  border-color: rgba(91, 81, 72, 0.2);  }
+.console-entry-timestamp { color: var(--color-muted); font-size: 0.65rem; }
+.console-entry-content { color: var(--color-ink); white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; line-height: 1.5; padding-left: 2rem; }
+.console-entry-content:empty { display: none; }
+.console-entry-json { background-color: rgba(0,0,0,0.03); padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem; overflow-x: auto; max-height: 400px; overflow-y: auto; transition: all 0.3s ease; border: 1px solid rgba(0,0,0,0.05); }
+.console-entry-json.collapsed { display: none; }
+.console-entry-json pre { margin: 0; color: var(--color-ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.7rem; }
+
+/* Event cards — created dynamically by recall.js */
+.event.card { background-color: var(--color-surface-strong) !important; border-color: var(--color-border) !important; box-shadow: none !important; color: var(--color-ink) !important; padding: 1rem; border-radius: 1rem; margin-bottom: 0.75rem; }
+.event.card p          { color: var(--color-ink)  !important; margin: 0; }
+.event.card p strong   { color: var(--color-ink)  !important; }
+.event.card p.meta     { color: var(--color-muted) !important; margin-top: 0.25rem !important; }
+</style>
+    <script src="/assets/js/app.js" type="module"></script>
+  </head>
+  <body class="h-screen flex flex-col overflow-hidden">
+    <header class="navbar bg-surface-strong shadow-sm px-4 py-2 flex-wrap gap-4 border-b border-border">
+      <div class="flex-1 flex flex-col items-start">
+        <h1 class="text-xl font-bold">ADK Bidi-streaming Demo</h1>
+        <p class="text-sm opacity-70">Real-time bidirectional streaming with Google ADK</p>
+      </div>
+      <div class="flex-none flex items-center gap-4 flex-wrap">
+        <label class="label cursor-pointer gap-2" title="Enable model to proactively respond without explicit prompts (Native audio models only)">
+          <input type="checkbox" id="enableProactivity" class="checkbox checkbox-primary checkbox-sm">
+          <span class="label-text">Proactivity</span>
+        </label>
+        <label class="label cursor-pointer gap-2" title="Enable model to detect and adapt to emotional cues (Native audio models only)">
+          <input type="checkbox" id="enableAffectiveDialog" class="checkbox checkbox-primary checkbox-sm">
+          <span class="label-text">Affective Dialog</span>
+        </label>
+        <div class="badge badge-neutral gap-2 p-3 font-semibold">
+          <span id="statusIndicator" class="status-indicator"></span>
+          <span id="statusText">Connecting...</span>
+        </div>
+      </div>
+    </header>
+    <main class="flex-1 flex flex-col lg:flex-row gap-4 p-4 max-w-[1800px] mx-auto w-full overflow-hidden bg-transparent min-h-0 h-0">
+      <div class="flex-[2] flex flex-col bg-transparent rounded-2xl shadow-sm border border-border overflow-hidden min-h-0">
+        <div id="messages" class="flex-1 p-4 overflow-y-auto min-h-0 flex flex-col gap-2"></div>
+        <div class="p-4 bg-transparent border-t border-border">
+          <form id="messageForm" class="flex gap-2 w-full items-center">
+            <input type="text" id="message" name="message" placeholder="Type your message here..." autocomplete="off" class="input input-bordered flex-1 bg-transparent border-border text-ink focus:outline-none focus:border-muted placeholder:text-muted">
+            <button type="submit" id="sendButton" class="btn btn-ghost border border-border" disabled>Send</button>
+            <button type="button" id="startAudioButton" class="btn btn-ghost border border-border">Start Audio</button>
+            <button type="button" id="cameraButton" class="btn btn-ghost border border-border">📷 Camera</button>
+          </form>
+        </div>
+      </div>
+      <div class="flex-1 flex flex-col bg-transparent text-ink rounded-2xl shadow-sm border border-border overflow-hidden font-mono min-h-0">
+        <div class="flex justify-between items-center p-3 bg-surface border-b border-border">
+          <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Event Console</h2>
+          <div class="flex items-center gap-3">
+            <label class="label cursor-pointer gap-2 p-0">
+              <input type="checkbox" id="showAudioEvents" class="checkbox checkbox-xs border-border">
+              <span class="label-text text-muted text-xs">Show audio</span>
+            </label>
+            <button id="clearConsole" class="btn btn-xs btn-ghost text-muted">Clear</button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto min-h-0">
+          <div id="consoleContent" class="flex-1 overflow-y-auto p-3 text-xs leading-relaxed bg-transparent"></div>
+        </div>
+      </div>
+    </main>
+    <dialog id="cameraModal" class="modal">
+      <div class="modal-box w-11/12 max-w-2xl bg-surface-strong">
+        <h3 class="font-bold text-lg mb-4 text-ink">Camera Preview</h3>
+        <div class="bg-black rounded-box overflow-hidden flex justify-center mb-4">
+          <video id="cameraPreview" autoplay playsinline class="max-w-full h-auto"></video>
+        </div>
+        <div class="modal-action">
+          <button id="cancelCamera" class="btn btn-ghost border border-gray-200">Cancel</button>
+          <button id="captureImage" class="btn btn-ghost border border-gray-200">📷 Send Image</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button id="closeCameraModal" aria-label="Close">close</button>
+      </form>
+    </dialog>
+  </body>
+</html>
