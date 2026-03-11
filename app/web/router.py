@@ -8,15 +8,13 @@ import fasthtml.common as fh
 
 from app.web.common import page_head
 
+# FastHTML symbols used only by the recall page — accessed via getattr to avoid
+# shadowing identically-named FastAPI exports (Header, Form, etc.).
 Body = getattr(fh, "Body")
 Button = getattr(fh, "Button")
-Dialog = getattr(fh, "Dialog")
 Div = getattr(fh, "Div")
 Form = getattr(fh, "Form")
-H1 = getattr(fh, "H1")
 H2 = getattr(fh, "H2")
-H3 = getattr(fh, "H3")
-Header = getattr(fh, "Header")
 Html = getattr(fh, "Html")
 Input = getattr(fh, "Input")
 Label = getattr(fh, "Label")
@@ -26,7 +24,6 @@ P = getattr(fh, "P")
 Section = getattr(fh, "Section")
 Select = getattr(fh, "Select")
 Span = getattr(fh, "Span")
-Video = getattr(fh, "Video")
 to_xml = fh.to_xml
 
 router = APIRouter()
@@ -34,139 +31,11 @@ router = APIRouter()
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 
 
-def _main_page() -> Html:
-    return Html(
-        page_head(
-            title="ADK Bidi-streaming Demo",
-            page_script_src="/assets/js/app.js",
-        ),
-        Body(
-            # ── Navbar ─────────────────────────────────────────────────────────
-            Header(
-                Div(
-                    H1("ADK Bidi-streaming Demo", cls="text-xl font-bold"),
-                    P(
-                        "Real-time bidirectional streaming with Google ADK",
-                        cls="text-sm opacity-70",
-                    ),
-                    cls="flex-1 flex flex-col items-start",
-                ),
-                Div(
-                    Label(
-                        Input(
-                            type="checkbox",
-                            id="enableProactivity",
-                            cls="checkbox checkbox-primary checkbox-sm",
-                        ),
-                        Span("Proactivity", cls="label-text"),
-                        cls="label cursor-pointer gap-2",
-                        title=(
-                            "Enable model to proactively respond without explicit prompts "
-                            "(Native audio models only)"
-                        ),
-                    ),
-                    Label(
-                        Input(
-                            type="checkbox",
-                            id="enableAffectiveDialog",
-                            cls="checkbox checkbox-primary checkbox-sm",
-                        ),
-                        Span("Affective Dialog", cls="label-text"),
-                        cls="label cursor-pointer gap-2",
-                        title=(
-                            "Enable model to detect and adapt to emotional cues "
-                            "(Native audio models only)"
-                        ),
-                    ),
-                    Div(
-                        Span(id="statusIndicator", cls="status-indicator"),
-                        Span("Connecting...", id="statusText"),
-                        cls="badge badge-neutral gap-2 p-3 font-semibold",
-                    ),
-                    cls="flex-none flex items-center gap-4 flex-wrap",
-                ),
-                cls="navbar bg-surface-strong shadow-sm px-4 py-2 flex-wrap gap-4 border-b border-border",
-            ),
-            # ── Main layout ────────────────────────────────────────────────────
-            Main(
-                # Chat container
-                Div(
-                    Div(id="messages", cls="flex-1 p-4 overflow-y-auto min-h-0 flex flex-col gap-2"),
-                    Div(
-                        Form(
-                            Input(
-                                type="text",
-                                id="message",
-                                name="message",
-                                placeholder="Type your message here...",
-                                autocomplete="off",
-                                cls="input input-bordered flex-1 bg-transparent border-border text-ink focus:outline-none focus:border-muted placeholder:text-muted",
-                            ),
-                            Button("Send", type="submit", id="sendButton", cls="btn btn-ghost border border-border", disabled=True),
-                            Button("Start Audio", type="button", id="startAudioButton", cls="btn btn-ghost border border-border"),
-                            Button("📷 Camera", type="button", id="cameraButton", cls="btn btn-ghost border border-border"),
-                            id="messageForm",
-                            cls="flex gap-2 w-full items-center",
-                        ),
-                        cls="p-4 bg-transparent border-t border-border",
-                    ),
-                    cls="flex-[2] flex flex-col bg-transparent rounded-2xl shadow-sm border border-border overflow-hidden min-h-0",
-                ),
-                # Console panel
-                Div(
-                    Div(
-                        H2(
-                            "Event Console",
-                            cls="text-sm font-semibold text-muted uppercase tracking-wider",
-                        ),
-                        Div(
-                            Label(
-                                Input(type="checkbox", id="showAudioEvents", cls="checkbox checkbox-xs border-border"),
-                                Span("Show audio", cls="label-text text-muted text-xs"),
-                                cls="label cursor-pointer gap-2 p-0",
-                            ),
-                            Button("Clear", id="clearConsole", cls="btn btn-xs btn-ghost text-muted"),
-                            cls="flex items-center gap-3",
-                        ),
-                        cls="flex justify-between items-center p-3 bg-surface border-b border-border",
-                    ),
-                    Div(
-                        Div(id="consoleContent", cls="flex-1 overflow-y-auto p-3 text-xs leading-relaxed bg-transparent"),
-                        cls="flex-1 overflow-y-auto min-h-0",
-                    ),
-                    cls=(
-                        "flex-1 flex flex-col bg-transparent text-ink rounded-2xl shadow-sm border border-border "
-                        "overflow-hidden font-mono min-h-0"
-                    ),
-                ),
-                cls="flex-1 flex flex-col lg:flex-row gap-4 p-4 max-w-[1800px] mx-auto w-full overflow-hidden bg-transparent min-h-0 h-0",
-            ),
-            # ── Camera modal (DaisyUI dialog) ──────────────────────────────────
-            Dialog(
-                Div(
-                    H3("Camera Preview", cls="font-bold text-lg mb-4 text-ink"),
-                    Div(
-                        Video(id="cameraPreview", autoplay=True, playsinline=True, cls="max-w-full h-auto"),
-                        cls="bg-black rounded-box overflow-hidden flex justify-center mb-4",
-                    ),
-                    Div(
-                        Button("Cancel", id="cancelCamera", cls="btn btn-ghost border border-gray-200"),
-                        Button("📷 Send Image", id="captureImage", cls="btn btn-ghost border border-gray-200"),
-                        cls="modal-action",
-                    ),
-                    cls="modal-box w-11/12 max-w-2xl bg-surface-strong",
-                ),
-                Form(
-                    Button("close", id="closeCameraModal", aria_label="Close"),
-                    method="dialog",
-                    cls="modal-backdrop",
-                ),
-                id="cameraModal",
-                cls="modal",
-            ),
-            cls="h-screen flex flex-col overflow-hidden",
-        ),
-    )
+@router.get("/", response_class=HTMLResponse)
+async def root() -> HTMLResponse:
+    """Serve the main streaming demo page as a static HTML file."""
+    html_file = ASSETS_DIR / "index.html"
+    return HTMLResponse(html_file.read_text())
 
 
 def _recall_page() -> Html:
@@ -302,13 +171,6 @@ def _recall_page() -> Html:
             cls="min-h-screen p-4 flex flex-col",
         ),
     )
-
-
-@router.get("/", response_class=HTMLResponse)
-async def root() -> HTMLResponse:
-    """Serve the main demo page as FastHTML."""
-
-    return HTMLResponse(to_xml(_main_page()))
 
 
 @router.get("/recall", response_class=HTMLResponse)
