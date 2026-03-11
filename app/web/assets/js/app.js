@@ -48,10 +48,7 @@ function getWebSocketUrl() {
   if (enableProactivityCheckbox && enableProactivityCheckbox.checked) {
     params.append("proactivity", "true");
   }
-  if (
-    enableAffectiveDialogCheckbox &&
-    enableAffectiveDialogCheckbox.checked
-  ) {
+  if (enableAffectiveDialogCheckbox && enableAffectiveDialogCheckbox.checked) {
     params.append("affective_dialog", "true");
   }
 
@@ -313,7 +310,9 @@ startAudioButton.addEventListener("click", () => {
   );
 
   is_audio = true;
-  chatUI.addSystemMessage("Audio mode enabled - you can now speak to the agent");
+  chatUI.addSystemMessage(
+    "Audio mode enabled - you can now speak to the agent",
+  );
 
   eventConsole.addEntry(
     "outgoing",
